@@ -18,17 +18,35 @@ function stub(overrides: Partial<CipherModule> = {}): CipherModule {
   };
 }
 
-const at = (cipher: CipherModule) => [{ path: './x/index.ts', cipher }];
+// The folder name is part of what gets validated, so the helper builds a path
+// that agrees with the module rather than a placeholder that would fail on its own.
+const at = (cipher: CipherModule) => [
+  { path: `./classical/substitution/${cipher.slug}/index.ts`, cipher },
+];
 
 describe('validateRegistry', () => {
+  it('rejects a folder that disagrees with the slug', () => {
+    // The catalogue reads a cipher's group from its folder, so a folder that does
+    // not match the slug is a trap rather than a cosmetic mismatch.
+    expect(() =>
+      validateRegistry([{ path: './classical/substitution/rot-13/index.ts', cipher: stub() }]),
+    ).toThrow(/folder is 'rot-13' but the slug is 'stub'/);
+  });
+
+  it('rejects a folder group that has no heading text', () => {
+    expect(() =>
+      validateRegistry([{ path: './classical/mystery/stub/index.ts', cipher: stub() }]),
+    ).toThrow(/not in GROUPS/);
+  });
+
   it('accepts a well-formed module', () => {
     expect(() => validateRegistry(at(stub()))).not.toThrow();
   });
 
   it('rejects a duplicate slug', () => {
     const entries = [
-      { path: './a/index.ts', cipher: stub() },
-      { path: './b/index.ts', cipher: stub() },
+      { path: './classical/substitution/stub/index.ts', cipher: stub() },
+      { path: './classical/transposition/stub/index.ts', cipher: stub() },
     ];
     expect(() => validateRegistry(entries)).toThrow(/already used by/);
   });

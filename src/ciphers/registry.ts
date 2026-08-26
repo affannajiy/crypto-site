@@ -12,6 +12,12 @@ import type { CipherModule, Tier } from './types';
 /** Catalogue grouping. Ordered as the learning path, not alphabetically. */
 export const FAMILIES = [
   {
+    id: 'encoding',
+    label: 'Encoding',
+    description:
+      'Not cryptography at all. Here so the difference between hiding a message and merely rewriting it is on the same screen as the ciphers.',
+  },
+  {
     id: 'classical',
     label: 'Classical',
     description: 'Pen-and-paper ciphers. Every one of them is broken, and that is the lesson.',
@@ -34,6 +40,41 @@ export const FAMILIES = [
 ] as const satisfies readonly { id: CipherModule['family']; label: string; description: string }[];
 
 const FAMILY_ORDER: readonly CipherModule['family'][] = FAMILIES.map((f) => f.id);
+
+/**
+ * Sub-headings inside a family, in learning-path order.
+ *
+ * A cipher's group is its **parent folder** — `classical/substitution/caesar`
+ * is in Substitution — so a cipher still declares nothing and the folder tree is
+ * the curriculum. This list only says what order the headings appear in, which is
+ * a pedagogical decision about the whole catalogue rather than a fact about any
+ * one cipher, so it lives here. Adding a cipher to an existing group needs no
+ * edit; inventing a new group costs one line, and an unlisted group sorts last.
+ */
+export const GROUPS: readonly { id: string; label: string; description: string }[] = [
+  { id: 'substitution', label: 'Substitution', description: 'One letter stands for another. The whole family falls to counting.' },
+  { id: 'polyalphabetic', label: 'Polyalphabetic', description: 'Several substitution alphabets in rotation, chosen by a keyword.' },
+  { id: 'transposition', label: 'Transposition', description: 'The letters are the same. Only the order changed.' },
+  { id: 'polygraphic', label: 'Polygraphic', description: 'Whole blocks of letters encrypted at once, not one at a time.' },
+  { id: 'fractionation', label: 'Fractionation', description: 'Split each letter into pieces, then scatter the pieces. Much harder to unpick.' },
+  { id: 'mechanical', label: 'Mechanical', description: 'A machine, not a rule. The key is a physical state.' },
+  { id: 'perfect-secrecy', label: 'Perfect secrecy', description: 'Provably unbreakable, and almost unusable. Both facts matter.' },
+  { id: 'symmetric', label: 'Block and stream ciphers', description: 'One shared key, real key sizes, and no known practical break.' },
+  { id: 'asymmetric', label: 'Public key', description: 'Encrypt with one key, decrypt with another.' },
+  { id: 'key-exchange', label: 'Key exchange', description: 'Not a cipher. How two strangers agree on a key in public.' },
+];
+
+const GROUP_ORDER = GROUPS.map((g) => g.id);
+
+/**
+ * The folder a cipher sits in, or undefined for a family with no sub-folders.
+ * `./classical/substitution/caesar/index.ts` -> 'substitution'.
+ */
+export function groupFromPath(path: string): string | undefined {
+  const parts = path.replace(/^\.\//, '').split('/');
+  // family / group / slug / index.ts
+  return parts.length >= 4 ? parts[1] : undefined;
+}
 
 /**
  * Which optional member each tier promises. A cipher that lists a tier without
@@ -108,6 +149,20 @@ export function validateRegistry(entries: readonly { path: string; cipher: Ciphe
       }
     }
 
+    // The folder name is the slug, because the catalogue reads the path for the
+    // cipher's group and a folder that disagrees with its module is a trap.
+    const folder = path.replace(/\/index\.ts$/, '').split('/').pop();
+    if (folder !== cipher.slug) {
+      problems.push(`${where}: folder is '${folder ?? '?'}' but the slug is '${cipher.slug}'.`);
+    }
+
+    const group = groupFromPath(path);
+    if (group !== undefined && !GROUP_ORDER.includes(group)) {
+      problems.push(
+        `${where}: folder group '${group}' is not in GROUPS, so it would sort last with no heading text.`,
+      );
+    }
+
     if (!cipher.explainer.toLowerCase().includes('how this breaks')) {
       problems.push(
         `${where}: explainer is missing a "How this breaks" section. Every cipher must ship its own failure.`,
@@ -134,12 +189,23 @@ if (import.meta.env.DEV) {
   validateRegistry(entries);
 }
 
-/** Every registered cipher, ordered by family and then by name. */
+const groupOf = new Map(entries.map((e) => [e.cipher.slug, groupFromPath(e.path)]));
+
+/** Where a cipher's group sits in the learning path. Unlisted groups sort last. */
+function rankOf(cipher: CipherModule): number {
+  const group = groupOf.get(cipher.slug);
+  if (group === undefined) return -1;
+  const at = GROUP_ORDER.indexOf(group);
+  return at === -1 ? GROUP_ORDER.length : at;
+}
+
+/** Every registered cipher, ordered by family, then learning path, then name. */
 export const ciphers: readonly CipherModule[] = entries
   .map((e) => e.cipher)
   .sort(
     (a, b) =>
       FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) ||
+      rankOf(a) - rankOf(b) ||
       a.name.localeCompare(b.name),
   );
 
@@ -150,10 +216,33 @@ export function getCipher(slug: string | undefined): CipherModule | undefined {
   return slug === undefined ? undefined : bySlug.get(slug);
 }
 
+export interface CatalogueGroup {
+  id: string;
+  label: string;
+  description: string;
+  ciphers: CipherModule[];
+}
+
+export interface CatalogueFamily {
+  id: CipherModule['family'];
+  label: string;
+  description: string;
+  ciphers: CipherModule[];
+  /** Sub-headings, in learning-path order. Empty when the family has no folders. */
+  groups: CatalogueGroup[];
+}
+
 /** Families that actually contain a cipher, in learning-path order. */
-export function populatedFamilies(): { id: CipherModule['family']; label: string; description: string; ciphers: CipherModule[] }[] {
-  return FAMILIES.map((family) => ({
-    ...family,
-    ciphers: ciphers.filter((c) => c.family === family.id),
-  })).filter((group) => group.ciphers.length > 0);
+export function populatedFamilies(): CatalogueFamily[] {
+  return FAMILIES.map((family) => {
+    const members = ciphers.filter((c) => c.family === family.id);
+    const groups: CatalogueGroup[] = [];
+    for (const spec of GROUPS) {
+      const inGroup = members.filter((c) => groupOf.get(c.slug) === spec.id);
+      if (inGroup.length > 0) groups.push({ ...spec, ciphers: inGroup });
+    }
+    // A family whose members are all ungrouped renders as one flat list.
+    const grouped = groups.reduce((n, g) => n + g.ciphers.length, 0);
+    return { ...family, ciphers: members, groups: grouped === members.length ? groups : [] };
+  }).filter((family) => family.ciphers.length > 0);
 }

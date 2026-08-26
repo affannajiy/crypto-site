@@ -89,7 +89,7 @@ export interface CipherModule {
   /** URL-safe and unique across the registry: 'caesar'. */
   slug: string;
   name: string;
-  family: 'classical' | 'symmetric' | 'hashing' | 'asymmetric';
+  family: 'encoding' | 'classical' | 'symmetric' | 'hashing' | 'asymmetric';
   /** Shown in the catalogue: '~50 BC', '1977'. */
   year?: string;
   /** One sentence, plain language. */

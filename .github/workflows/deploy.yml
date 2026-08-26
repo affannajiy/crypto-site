@@ -1,0 +1,59 @@
+# Builds the site and publishes it to GitHub Pages.
+#
+# Nothing here is deploy-specific magic: `npm run build` already typechecks, and
+# vite.config.ts already bakes in the `/crypto-site/` base path for production.
+# If the repository is renamed, change REPO_BASE in vite.config.ts to match — the
+# build will otherwise request its assets from a path that does not exist.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-run a deploy from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+# The token needs to write Pages and mint an OIDC id-token for deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. Queued runs wait rather than racing; an in-flight run is
+# not cancelled, because cancelling mid-deploy can leave Pages half-updated.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Tests are the reason to trust the deploy, so they gate it.
+      - run: npm test
+
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
