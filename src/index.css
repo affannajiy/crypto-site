@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * Every colour in the app comes from a semantic name here, never from a raw hex
+ * value or a Tailwind palette class in a component. That is what makes a dark
+ * theme a change to this file instead of a change to every component.
+ *
+ * The palette is the warm cream-and-orange system shared with the other site.
+ * The orange is the only attention colour in the product. It means "look here"
+ * and nothing else — never a button, a link, or decoration.
+ *
+ * It appears in five steps, and the split is about contrast, not decoration:
+ *
+ *   marker        #f97316  2.6:1 on canvas — fills only, never a lone signal
+ *   marker-line   #c2500f  4.5:1 on canvas — strokes, borders, underlines (1.4.11)
+ *   marker-ink    #96410a  6.5:1 on canvas — orange *text* (1.4.3)
+ *   marker-mid    #fed7aa  a soft border on a tinted surface
+ *   marker-wash   #fff0e6  the tinted surface itself
+ *
+ * A highlighted character is near-black on marker-wash with a marker-line
+ * underline, so colour is never the only signal.
+ */
+@theme {
+  --color-canvas: #faf8f5;
+  --color-surface: #ffffff;
+  --color-sunken: #f3f0ea;
+
+  --color-ink-strong: #111010;
+  --color-ink: #2d2416;
+  --color-ink-muted: #6f6455;
+  --color-ink-subtle: #756a5a;
+  --color-ink-inverse: #faf8f5;
+
+  /* line is decorative; line-strong is for control borders and clears 3:1. */
+  --color-line: #e8e2d8;
+  --color-line-strong: #9a8f7e;
+
+  --color-marker: #f97316;
+  --color-marker-line: #c2500f;
+  --color-marker-ink: #96410a;
+  --color-marker-mid: #fed7aa;
+  --color-marker-wash: #fff0e6;
+
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+@layer base {
+  html {
+    /* Anchor links land below the sticky header instead of under it. */
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /*
+   * One focus style for the whole app. WCAG 2.4.7 and 2.4.11: visible, and not
+   * obscured. Restyle it, never remove it.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-marker-line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Motion is the enhancement. The still version is the product. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  /*
+   * Shared shapes. Defined once so a fix lands everywhere, and so no component
+   * has to remember the token names.
+   */
+  .cl-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 0.625rem;
+  }
+
+  /*
+   * Body prose. Full width, justified, hyphenated.
+   *
+   * Justification is a deliberate house choice against the usual advice, which
+   * is that justified text opens rivers of whitespace. `hyphens: auto` is what
+   * keeps that from happening — it lets the browser break long words instead of
+   * stretching the spaces around them, so drop one and you should drop both.
+   */
+  .cl-prose {
+    width: 100%;
+    text-align: justify;
+    hyphens: auto;
+    line-height: 1.65;
+  }
+
+  .cl-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    /* WCAG 2.5.8: never below a 24x24 target. */
+    min-height: 2.25rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-line-strong);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cl-button:hover:not(:disabled) {
+    background-color: var(--color-sunken);
+  }
+
+  .cl-button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .cl-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .cl-button-primary {
+    background-color: var(--color-ink-strong);
+    border-color: var(--color-ink-strong);
+    color: var(--color-ink-inverse);
+  }
+
+  .cl-button-primary:hover:not(:disabled) {
+    background-color: var(--color-ink);
+  }
+
+  .cl-field {
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.5rem;
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+  }
+
+  .cl-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-ink-muted);
+    margin-bottom: 0.25rem;
+  }
+}
