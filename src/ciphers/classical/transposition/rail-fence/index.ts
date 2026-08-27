@@ -102,6 +102,11 @@ const railFenceCipher: CipherModule = {
   name: 'Rail Fence Cipher',
   family: 'classical',
   year: '~500 BC',
+  origin: 'Classical; the scytale idea in two dimensions',
+  keyType: 'A rail count',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['transposition', 'zigzag', 'scytale', 'permutation'],
   blurb: 'The message zigzags across a set of rails, then is read off row by row.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -113,6 +118,23 @@ const railFenceCipher: CipherModule = {
       min: MIN_RAILS,
       max: MAX_RAILS,
       default: 3,
+    },
+  ],
+  examples: [
+    {
+      label: 'Three rails',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { rails: 3 },
+    },
+    {
+      label: 'Two rails is barely a cipher',
+      input: 'With two rails the letters simply alternate.',
+      params: { rails: 2 },
+    },
+    {
+      label: 'Seven rails',
+      input: 'Send the guns to the eastern gate before dawn.',
+      params: { rails: 7 },
     },
   ],
 

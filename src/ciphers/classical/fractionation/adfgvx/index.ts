@@ -106,6 +106,11 @@ const adfgvxCipher: CipherModule = {
   name: 'ADFGVX',
   family: 'classical',
   year: '1918',
+  origin: 'Fritz Nebel, German Army, 1918',
+  keyType: 'A 6x6 keyed square and a transposition keyword',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['fractionation', 'transposition', 'world war one', 'painvin', 'polybius'],
   blurb: 'Fractionate, then transpose. Two weak ideas composed into the best cipher of the war.',
   explainer,
   // No 'attack'. Painvin's break needed several messages in depth, and
@@ -125,6 +130,18 @@ const adfgvxCipher: CipherModule = {
       label: 'Transposition keyword',
       default: 'ARGUS',
       placeholder: 'Its alphabetical order decides the column order.',
+    },
+  ],
+  examples: [
+    {
+      label: 'Painvin\'s cipher, 1918',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'PAINVIN1918', transposition: 'ARGUS' },
+    },
+    {
+      label: 'A longer intercept',
+      input: 'Send the second company to the eastern gate before dawn and hold there until the guns arrive.',
+      params: { keyword: 'NACHRICHT', transposition: 'BEOBACHTUNG' },
     },
   ],
 

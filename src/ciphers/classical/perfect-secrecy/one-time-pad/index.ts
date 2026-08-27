@@ -127,6 +127,11 @@ const oneTimePadCipher: CipherModule = {
   name: 'One-Time Pad',
   family: 'classical',
   year: '1882',
+  origin: 'Frank Miller, then Vernam and Mauborgne',
+  keyType: 'A random key exactly as long as the message, used once',
+  security: 'perfect',
+  difficulty: 'intermediate',
+  keywords: ['vernam', 'perfect secrecy', 'xor', 'unbreakable', 'shannon'],
   blurb: 'A random key as long as the message. Unbreakable, and almost unusable.',
   explainer,
   // No 'attack'. Playfair omits it because the search is out of scope; this omits
@@ -139,6 +144,13 @@ const oneTimePadCipher: CipherModule = {
       label: 'Pad',
       default: DEFAULT_PAD,
       placeholder: 'Random letters, at least as many as the message has',
+      randomise: { alphabet: 'letters', length: 96 },
+    },
+  ],
+  examples: [
+    {
+      label: 'A message the pad is long enough for',
+      input: 'Meet me at dawn.',
     },
   ],
 

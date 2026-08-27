@@ -84,6 +84,11 @@ const fourSquareCipher: CipherModule = {
   name: 'Four-square',
   family: 'classical',
   year: '1902',
+  origin: 'Felix Delastelle',
+  keyType: 'Two keyed 5x5 squares',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['digraph', 'polygraphic', 'polybius', 'delastelle'],
   blurb: 'Playfair with four squares and no special cases. Bigger key, easier to break.',
   explainer,
   // No 'attack'. Two keyed squares is a hill-climbing program, not a button.
@@ -95,6 +100,7 @@ const fourSquareCipher: CipherModule = {
       label: 'Key one (top-right square)',
       default: 'EXAMPLE',
       placeholder: 'A word. Fills the square, then the rest of the alphabet.',
+      randomise: { alphabet: 'letters', length: 8 },
     },
     {
       kind: 'text',
@@ -102,6 +108,19 @@ const fourSquareCipher: CipherModule = {
       label: 'Key two (bottom-left square)',
       default: 'KEYWORD',
       placeholder: 'A different word.',
+      randomise: { alphabet: 'letters', length: 8 },
+    },
+  ],
+  examples: [
+    {
+      label: 'Two keyed squares',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyOne: 'EXAMPLE', keyTwo: 'KEYWORD' },
+    },
+    {
+      label: 'No doubled-letter rule to trip over',
+      input: 'The balloon rises at noon.',
+      params: { keyOne: 'DELASTELLE', keyTwo: 'CIPHER' },
     },
   ],
 

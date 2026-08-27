@@ -41,8 +41,11 @@ export function useCipherRun(
     let outcome: TraceResult | Promise<TraceResult>;
 
     try {
-      outcome =
-        direction === 'encrypt' ? cipher.encrypt(input, params) : cipher.decrypt(input, params);
+      // A one-way module has no `decrypt`, and the workbench gives it no
+      // direction control — but the state it owns still has a direction, so this
+      // falls back rather than trusting that the UI can never be out of step.
+      const run = direction === 'decrypt' ? cipher.decrypt : undefined;
+      outcome = run === undefined ? cipher.encrypt(input, params) : run(input, params);
     } catch (error) {
       setState({ status: 'error', message: messageFor(error) });
       return;

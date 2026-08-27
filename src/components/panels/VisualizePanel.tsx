@@ -36,8 +36,8 @@ export default function VisualizePanel({
   return (
     <div className="flex flex-col gap-4">
       <p className="cl-prose text-sm text-ink-muted">
-        This is the same run as the Encrypt tab, drawn rather than listed. Change the message or
-        the key there and the picture follows.
+        {cipher.visualizeNote ??
+          'This is the same run as the Encrypt tab, drawn rather than listed. Change the message or the key there and the picture follows.'}
       </p>
       <Visualizer steps={run.result.steps} params={params} />
     </div>

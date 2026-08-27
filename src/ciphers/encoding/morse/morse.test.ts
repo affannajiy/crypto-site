@@ -146,7 +146,11 @@ describe('the module', () => {
   it('round-trips through the module', () => {
     const encrypted = morseCipher.encrypt('MEET ME AT DAWN', {});
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = morseCipher.decrypt(output, {});
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = morseCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, {});
     expect('output' in decrypted && decrypted.output).toBe('MEET ME AT DAWN');
   });
 

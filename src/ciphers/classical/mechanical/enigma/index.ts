@@ -26,6 +26,8 @@ import {
   parsePositions,
 } from './enigma';
 import EnigmaPath from './EnigmaPath';
+import { randomIntInclusive } from '../../../params';
+import { A_TO_Z } from '../../../../lib/letters';
 
 /** Params arrive as `string | number` because they come from form controls. */
 function readSettings(p: Params): Settings {
@@ -130,6 +132,11 @@ const enigmaCipher: CipherModule = {
   name: 'Enigma',
   family: 'classical',
   year: '1918',
+  origin: 'Arthur Scherbius; used by the German military',
+  keyType: 'Rotor order, ring settings, start positions and plugboard pairs',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['rotor', 'machine', 'bletchley', 'turing', 'wehrmacht', 'world war two'],
   blurb: 'Three rotors, a reflector and a plugboard. Broken by its own symmetry.',
   explainer,
   // No 'attack'. Breaking Enigma needs a crib, which `attack(ciphertext)` cannot
@@ -152,6 +159,7 @@ const enigmaCipher: CipherModule = {
       label: 'Starting positions',
       default: 'AAA',
       placeholder: 'Three letters, one per rotor',
+      randomise: { alphabet: 'letters', length: 3 },
     },
     {
       kind: 'text',
@@ -159,6 +167,7 @@ const enigmaCipher: CipherModule = {
       label: 'Ring settings',
       default: 'AAA',
       placeholder: 'Three letters, one per rotor',
+      randomise: { alphabet: 'letters', length: 3 },
     },
     {
       kind: 'text',
@@ -168,6 +177,68 @@ const enigmaCipher: CipherModule = {
       placeholder: 'Pairs of letters: AB CD EF',
     },
   ],
+  examples: [
+    {
+      label: 'Rotors I II III, all at A',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { left: 'I', middle: 'II', right: 'III', reflector: 'B', positions: 'AAA', rings: 'AAA', plugboard: '' },
+    },
+    {
+      label: 'With a plugboard',
+      input: 'Send the second company to the eastern gate before dawn.',
+      params: { left: 'II', middle: 'IV', right: 'V', reflector: 'B', positions: 'WXC', rings: 'BQA', plugboard: 'AB CD EF GH' },
+    },
+    {
+      label: 'No letter is ever itself',
+      input: 'AAAAAAAAAAAAAAAAAAAAAAAAA',
+      params: { left: 'I', middle: 'II', right: 'III', reflector: 'B', positions: 'AAA', rings: 'AAA', plugboard: '' },
+    },
+  ],
+
+  /**
+   * A whole machine setting: three *different* rotors, a reflector, ring
+   * settings, start positions, and six plugboard pairs.
+   *
+   * The rotors are the reason this exists. Each one is a physical wheel, so the
+   * same rotor cannot be fitted in two slots — a per-param randomiser choosing
+   * three times from one list would produce III, III, II about a fifth of the
+   * time. Six plugboard pairs is what the Wehrmacht actually used.
+   */
+  randomKey(): Params {
+    const wheels = ROTORS.map((r) => r.name);
+    // Fisher-Yates, then take the first three: the shuffle is what guarantees
+    // they differ, rather than a retry loop that usually terminates.
+    for (let i = wheels.length - 1; i > 0; i -= 1) {
+      const j = randomIntInclusive(0, i);
+      const swap = wheels[i] as string;
+      wheels[i] = wheels[j] as string;
+      wheels[j] = swap;
+    }
+
+    const letters = A_TO_Z.split('');
+    for (let i = letters.length - 1; i > 0; i -= 1) {
+      const j = randomIntInclusive(0, i);
+      const swap = letters[i] as string;
+      letters[i] = letters[j] as string;
+      letters[j] = swap;
+    }
+    const plugboard = Array.from({ length: 6 }, (_, pair) =>
+      `${letters[pair * 2] ?? ''}${letters[pair * 2 + 1] ?? ''}`,
+    ).join(' ');
+
+    const letter = () => A_TO_Z[randomIntInclusive(0, 25)] ?? 'A';
+    const reflector = REFLECTORS[randomIntInclusive(0, REFLECTORS.length - 1)];
+
+    return {
+      left: wheels[0] ?? 'I',
+      middle: wheels[1] ?? 'II',
+      right: wheels[2] ?? 'III',
+      reflector: reflector?.name ?? 'B',
+      positions: `${letter()}${letter()}${letter()}`,
+      rings: `${letter()}${letter()}${letter()}`,
+      plugboard,
+    };
+  },
 
   encrypt(input: string, p: Params): TraceResult {
     return enigmaTrace(input, readSettings(p));

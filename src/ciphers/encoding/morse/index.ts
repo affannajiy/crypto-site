@@ -79,12 +79,27 @@ const morseCipher: CipherModule = {
   name: 'Morse Code',
   family: 'encoding',
   year: '1844',
+  origin: 'Samuel Morse and Alfred Vail',
+  keyType: 'No key. The code book is public and always was',
+  security: 'not-encryption',
+  difficulty: 'beginner',
+  keywords: ['encoding', 'telegraph', 'dots and dashes', 'not encryption', 'prosign'],
   blurb: 'Not encryption. A public, keyless code — here to make the difference concrete.',
   explainer,
   // No 'attack', and no params. Nothing is hidden, so there is nothing to search
   // for and nothing to choose. See the note at the top of this file.
   tiers: ['encrypt', 'visualize', 'benchmark'],
   params: [],
+  examples: [
+    {
+      label: 'A famous first message',
+      input: 'What hath God wrought',
+    },
+    {
+      label: 'A distress call',
+      input: 'SOS SOS',
+    },
+  ],
 
   encrypt(input: string): TraceResult {
     return morseTrace(input);

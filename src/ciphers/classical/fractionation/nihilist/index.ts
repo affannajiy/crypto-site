@@ -83,6 +83,11 @@ const nihilistCipher: CipherModule = {
   name: 'Nihilist',
   family: 'classical',
   year: '1880s',
+  origin: 'Russian Nihilist movement',
+  keyType: 'A keyed 5x5 square and a repeating keyword',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['fractionation', 'polybius', 'additive', 'russia'],
   blurb: 'Coordinates plus a repeating key, added without reducing — so the sums leak the key.',
   explainer,
   // No 'attack'. See the note at the top of this file.
@@ -94,6 +99,7 @@ const nihilistCipher: CipherModule = {
       label: 'Square keyword',
       default: 'ZEBRAS',
       placeholder: 'A word. Fills the square, then the rest of the alphabet.',
+      randomise: { alphabet: 'letters', length: 6 },
     },
     {
       kind: 'text',
@@ -101,6 +107,19 @@ const nihilistCipher: CipherModule = {
       label: 'Additive key',
       default: 'RUSSIA',
       placeholder: 'A word. Its coordinates are added to the message.',
+      randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  examples: [
+    {
+      label: 'Coordinates plus a repeating key',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'ZEBRAS', additive: 'RUSSIA' },
+    },
+    {
+      label: 'Enough sums to see the leak',
+      input: 'Send the second company to the eastern gate before dawn and hold there until the guns arrive.',
+      params: { keyword: 'ZEBRAS', additive: 'MOSCOW' },
     },
   ],
 

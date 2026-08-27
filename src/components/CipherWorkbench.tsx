@@ -1,6 +1,8 @@
 import { useCallback, useId, useRef, useState } from 'react';
-import type { CipherModule, Params, Tier } from '../ciphers/types';
-import ParamControls, { defaultParams } from './ParamControls';
+import type { CipherExample, CipherModule, Params, Tier } from '../ciphers/types';
+import { cipherCanRandomise, defaultParams, randomKeyFor } from '../ciphers/params';
+import ExamplePicker from './ExamplePicker';
+import ParamControls from './ParamControls';
 import { useCipherRun, type Direction } from './useCipherRun';
 import EncryptPanel from './panels/EncryptPanel';
 import AttackPanel from './panels/AttackPanel';
@@ -51,6 +53,42 @@ export default function CipherWorkbench({ cipher }: { cipher: CipherModule }) {
     setParams((previous) => ({ ...previous, ...key }));
   }, []);
 
+  /**
+   * Send the result back in and work the other way.
+   *
+   * Both pieces of state move together, so this is one callback rather than the
+   * caller doing two — a swap that set the text and left the direction alone
+   * would silently re-encrypt the ciphertext.
+   */
+  const swap = useCallback((output: string) => {
+    setInput(output);
+    setDirection((previous) => (previous === 'encrypt' ? 'decrypt' : 'encrypt'));
+    setActiveIndex(null);
+  }, []);
+
+  /**
+   * Load a preset: its message, and its key on top of the defaults.
+   *
+   * The defaults are re-applied first so that picking a second example cannot
+   * inherit half of the first one — an example sets only the params it cares
+   * about, and everything it left out should be the cipher's default rather than
+   * whatever happened to be on screen.
+   */
+  const useExample = useCallback(
+    (example: CipherExample) => {
+      setInput(example.input);
+      setParams({ ...defaultParams(cipher.params), ...example.params });
+      setDirection('encrypt');
+      setActiveIndex(null);
+    },
+    [cipher],
+  );
+
+  const randomise = useCallback(() => {
+    setParams((previous) => randomKeyFor(cipher, previous));
+    setActiveIndex(null);
+  }, [cipher]);
+
   const changeDirection = useCallback((next: Direction) => {
     setDirection(next);
     setActiveIndex(null);
@@ -87,11 +125,27 @@ export default function CipherWorkbench({ cipher }: { cipher: CipherModule }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <ExamplePicker examples={cipher.examples ?? []} onPick={useExample} />
+
       {cipher.params.length > 0 && (
         <section aria-labelledby={`${baseId}-key`} className="cl-card px-4 py-4">
-          <h2 id={`${baseId}-key`} className="mb-3 text-sm font-semibold text-ink-strong">
-            Key and settings
-          </h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 id={`${baseId}-key`} className="text-sm font-semibold text-ink-strong">
+              Key and settings
+            </h2>
+            {/* Only shown when something here can actually be invented. A cipher
+                whose only text param is a plugboard string gets no button rather
+                than a button that does nothing. */}
+            {cipherCanRandomise(cipher) && (
+              <button
+                type="button"
+                className="cl-button min-h-9 px-3 py-1 text-sm"
+                onClick={randomise}
+              >
+                Randomise
+              </button>
+            )}
+          </div>
           <ParamControls specs={cipher.params} values={params} onChange={changeParam} />
         </section>
       )}
@@ -140,6 +194,9 @@ export default function CipherWorkbench({ cipher }: { cipher: CipherModule }) {
         >
           {tab === 'encrypt' && (
             <EncryptPanel
+              cipher={cipher}
+              params={params}
+              onSwap={swap}
               input={input}
               onInputChange={changeInput}
               direction={direction}

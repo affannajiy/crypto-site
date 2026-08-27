@@ -83,6 +83,11 @@ const autokeyCipher: CipherModule = {
   name: 'Autokey',
   family: 'classical',
   year: '1586',
+  origin: 'Blaise de Vigenere',
+  keyType: 'A short primer keyword, extended by the message itself',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['polyalphabetic', 'self key', 'vigenere', 'primer'],
   blurb: 'The message becomes its own key, so nothing repeats and Kasiski has nothing to find.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -94,6 +99,19 @@ const autokeyCipher: CipherModule = {
       label: 'Keyword (the part that is not the message)',
       default: 'KEY',
       placeholder: 'A short word. Letters only.',
+      randomise: { alphabet: 'letters', length: 3 },
+    },
+  ],
+  examples: [
+    {
+      label: 'A three-letter primer',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'KEY' },
+    },
+    {
+      label: 'Short primer, long message',
+      input: 'The message extends its own key, so nothing ever repeats and Kasiski finds nothing to measure.',
+      params: { keyword: 'AB' },
     },
   ],
 

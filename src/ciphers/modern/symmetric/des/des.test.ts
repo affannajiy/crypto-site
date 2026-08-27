@@ -252,7 +252,11 @@ describe('the module', () => {
     const params = { key: '133457799bbcdff1', mode: 'CBC', iv: '0f0e0d0c0b0a0908' };
     const encrypted = desCipher.encrypt('Attack at dawn', params);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = desCipher.decrypt(output, params);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = desCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, params);
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn');
   });
 

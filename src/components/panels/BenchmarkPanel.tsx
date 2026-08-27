@@ -22,7 +22,8 @@ interface Measurement {
   sizeChars: number;
   medianMs: number;
   charsPerSecond: number;
-  stepCount: number;
+  /** Null when the untraced path ran, which allocates no steps to count. */
+  stepCount: number | null;
 }
 
 function buildInput(sizeChars: number): string {
@@ -60,20 +61,31 @@ export default function BenchmarkPanel({
     setError(null);
     const text = buildInput(sizeChars);
 
+    // Gap 2: measure the untraced path when the cipher offers one. Falling back
+    // rather than requiring it is what lets this land without touching every
+    // module, and the panel says below which of the two it timed.
+    const fast = cipher.benchmark;
+
     try {
       // A first pass lets the engine settle before anything is recorded.
       for (let i = 0; i < WARMUP_RUNS; i += 1) {
-        await cipher.encrypt(text, params);
+        if (fast === undefined) await cipher.encrypt(text, params);
+        else await fast(text, params);
       }
 
       const timings: number[] = [];
-      let stepCount = 0;
+      let stepCount: number | null = null;
       for (let i = 0; i < MEASURED_RUNS; i += 1) {
         await yieldToBrowser();
         const started = performance.now();
-        const traced = await cipher.encrypt(text, params);
-        timings.push(performance.now() - started);
-        stepCount = traced.steps.length;
+        if (fast === undefined) {
+          const traced = await cipher.encrypt(text, params);
+          timings.push(performance.now() - started);
+          stepCount = traced.steps.length;
+        } else {
+          await fast(text, params);
+          timings.push(performance.now() - started);
+        }
       }
 
       const medianMs = median(timings);
@@ -147,26 +159,37 @@ export default function BenchmarkPanel({
             </dd>
           </div>
           <div className="cl-card px-4 py-3">
-            <dt className="text-xs font-medium text-ink-subtle">Steps traced</dt>
+            <dt className="text-xs font-medium text-ink-subtle">
+              {result.stepCount === null ? 'What ran' : 'Steps traced'}
+            </dt>
             <dd className="mt-1 font-mono text-lg font-bold text-ink">
-              {formatCount(result.stepCount)}
+              {result.stepCount === null ? 'untraced' : formatCount(result.stepCount)}
             </dd>
           </div>
         </dl>
       )}
 
       <div className="w-full text-sm text-ink-muted">
-        <p className="cl-prose">
-          <strong className="font-semibold text-ink-strong">What this number is not.</strong> Every
-          cipher in this app builds a full step trace as it works — one object per character,
-          with a sentence of English inside it. That allocation dominates the measurement, so
-          this is the speed of the teaching implementation, not of the algorithm.
-        </p>
+        {cipher.benchmark === undefined ? (
+          <p className="cl-prose">
+            <strong className="font-semibold text-ink-strong">What this number is not.</strong> This
+            cipher has no untraced path, so what ran was the teaching implementation: one step
+            object per character, with a sentence of English inside it. That allocation dominates
+            the measurement, so this is the speed of the trace, not of the algorithm.
+          </p>
+        ) : (
+          <p className="cl-prose">
+            <strong className="font-semibold text-ink-strong">What this number is.</strong> This
+            cipher offers an untraced path and that is what ran, so no step objects were built and
+            no English was written. It is the algorithm as this app implements it — still written
+            for legibility rather than speed, and still not comparable to an optimised library.
+          </p>
+        )}
         <p className="cl-prose mt-3">
-          It is still a fair comparison <em>between</em> ciphers here, because they all pay the
-          same cost. It is not comparable to a published figure for the same algorithm, and it
-          says nothing at all about whether a cipher is secure. Fast and broken is the normal
-          state of a classical cipher.
+          It is a fair comparison <em>between</em> ciphers here only when both measured the same
+          way, which the row above names. It says nothing at all about whether a cipher is secure.
+          Fast and broken is the normal state of a classical cipher, and{' '}
+          <em>deliberately slow</em> is the entire point of a password hash.
         </p>
       </div>
     </div>

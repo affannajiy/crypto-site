@@ -124,6 +124,11 @@ const playfairCipher: CipherModule = {
   name: 'Playfair Cipher',
   family: 'classical',
   year: '1854',
+  origin: 'Charles Wheatstone, promoted by Lord Playfair',
+  keyType: 'A keyword building a 5x5 square',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['digraph', 'polygraphic', 'wheatstone', 'square'],
   blurb: 'Letters are encrypted in pairs, using three rules on a 5x5 key square.',
   explainer,
   // No 'attack'. See the note at the top of this file — the tab does not exist
@@ -136,6 +141,19 @@ const playfairCipher: CipherModule = {
       label: 'Keyword',
       default: 'MONARCHY',
       placeholder: 'A memorable word — it fills the square, then the alphabet follows',
+      randomise: { alphabet: 'letters', length: 8 },
+    },
+  ],
+  examples: [
+    {
+      label: 'Wheatstone\'s own key square',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'MONARCHY' },
+    },
+    {
+      label: 'A doubled letter, split by X',
+      input: 'The balloon rises at noon.',
+      params: { keyword: 'PLAYFAIR' },
     },
   ],
 

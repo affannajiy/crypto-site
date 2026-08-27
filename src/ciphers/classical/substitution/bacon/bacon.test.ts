@@ -257,7 +257,11 @@ describe('the module', () => {
     const key = { variant: '24', carrier: '' };
     const encrypted = baconCipher.encrypt('FLEE', key);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = baconCipher.decrypt(output, key);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = baconCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, key);
     expect('output' in decrypted && decrypted.output).toBe('FLEE');
   });
 
@@ -265,7 +269,11 @@ describe('the module', () => {
     const key = { variant: '26', carrier: 'the quick brown fox jumps over the lazy dog again now' };
     const encrypted = baconCipher.encrypt('FLEE', key);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = baconCipher.decrypt(output, key);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = baconCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, key);
     const steps = 'steps' in decrypted ? decrypted.steps : [];
     expect(steps.some((s) => s.data?.['trailingA'] !== undefined)).toBe(true);
   });

@@ -86,6 +86,11 @@ const checkerboardCipher: CipherModule = {
   name: 'Straddling Checkerboard',
   family: 'classical',
   year: '1930s',
+  origin: 'Soviet intelligence, refined for the VIC cipher',
+  keyType: 'A keyed alphabet and two long-code digits',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['code', 'variable length', 'vic', 'soviet', 'spy'],
   blurb: 'Common letters cost one digit, rare ones two. A prefix-free code, decades early.',
   explainer,
   // No 'attack'. On its own this is a code, and breaking it is the frequency
@@ -105,6 +110,18 @@ const checkerboardCipher: CipherModule = {
       label: 'Escape digits (two of 0-9)',
       default: '26',
       placeholder: 'Two digits, e.g. 26',
+    },
+  ],
+  examples: [
+    {
+      label: 'The usual high-frequency row',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'ATONESIR', escapes: '26' },
+    },
+    {
+      label: 'A different escape pair',
+      input: 'Hold the bridge until dawn.',
+      params: { keyword: 'ESANTIRU', escapes: '37' },
     },
   ],
 
