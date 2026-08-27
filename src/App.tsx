@@ -2,6 +2,10 @@ import { RouterProvider, createHashRouter } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import CipherPage from './pages/CipherPage';
+import Analyse from './pages/Analyse';
+import Timeline from './pages/Timeline';
+import Compare from './pages/Compare';
+import Playground from './pages/Playground';
 import NotFound from './pages/NotFound';
 
 /**
@@ -18,6 +22,10 @@ const router = createHashRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'cipher/:slug', element: <CipherPage /> },
+      { path: 'timeline', element: <Timeline /> },
+      { path: 'compare', element: <Compare /> },
+      { path: 'playground', element: <Playground /> },
+      { path: 'analyse', element: <Analyse /> },
       { path: '*', element: <NotFound /> },
     ],
   },

@@ -7,7 +7,7 @@
  * touch. If you find yourself editing this file to add a cipher, something has
  * gone wrong.
  */
-import type { CipherModule, Tier } from './types';
+import type { CipherModule, Difficulty, Security, Tier } from './types';
 
 /** Catalogue grouping. Ordered as the learning path, not alphabetically. */
 export const FAMILIES = [
@@ -39,6 +39,46 @@ export const FAMILIES = [
   },
 ] as const satisfies readonly { id: CipherModule['family']; label: string; description: string }[];
 
+/**
+ * The words the UI puts beside a security rating.
+ *
+ * `label` is the badge. `summary` is the sentence under it, and it says what the
+ * rating means rather than shouting — the app's honesty is carried by each
+ * cipher's "How this breaks" section, not by an alarm on every card.
+ */
+export const SECURITY: Record<Security, { label: string; summary: string }> = {
+  'not-encryption': {
+    label: 'Not encryption',
+    summary: 'Nothing is hidden. Anyone who knows the scheme can read it, which is the point.',
+  },
+  broken: {
+    label: 'Broken',
+    summary: 'Falls to an attack a person can run by hand or in a browser. For learning only.',
+  },
+  deprecated: {
+    label: 'Deprecated',
+    summary: 'Sound design, obsolete parameters. Do not use it for new work.',
+  },
+  secure: {
+    label: 'No known practical attack',
+    summary:
+      'The algorithm holds up. This implementation is written for legibility, not safety, and is still not for real secrets.',
+  },
+  perfect: {
+    label: 'Provably unbreakable',
+    summary: 'Secure in theory and nearly unusable in practice. Both halves matter.',
+  },
+};
+
+export const DIFFICULTY: Record<Difficulty, { label: string }> = {
+  beginner: { label: 'Beginner' },
+  intermediate: { label: 'Intermediate' },
+  advanced: { label: 'Advanced' },
+};
+
+const SECURITY_VALUES = Object.keys(SECURITY) as Security[];
+const DIFFICULTY_VALUES = Object.keys(DIFFICULTY) as Difficulty[];
+
 const FAMILY_ORDER: readonly CipherModule['family'][] = FAMILIES.map((f) => f.id);
 
 /**
@@ -60,6 +100,7 @@ export const GROUPS: readonly { id: string; label: string; description: string }
   { id: 'mechanical', label: 'Mechanical', description: 'A machine, not a rule. The key is a physical state.' },
   { id: 'perfect-secrecy', label: 'Perfect secrecy', description: 'Provably unbreakable, and almost unusable. Both facts matter.' },
   { id: 'symmetric', label: 'Block and stream ciphers', description: 'One shared key, real key sizes, and no known practical break.' },
+  { id: 'digests', label: 'Digests', description: 'One way only. No key, no decryption, and a fixed-size fingerprint of any input.' },
   { id: 'asymmetric', label: 'Public key', description: 'Encrypt with one key, decrypt with another.' },
   { id: 'key-exchange', label: 'Key exchange', description: 'Not a cipher. How two strangers agree on a key in public.' },
 ];
@@ -112,6 +153,31 @@ export function validateRegistry(entries: readonly { path: string; cipher: Ciphe
       seenSlugs.set(cipher.slug, path);
     }
 
+    if (!SECURITY_VALUES.includes(cipher.security)) {
+      problems.push(
+        `${where}: security is '${String(cipher.security)}', not one of ${SECURITY_VALUES.join(', ')}.`,
+      );
+    }
+    if (!DIFFICULTY_VALUES.includes(cipher.difficulty)) {
+      problems.push(
+        `${where}: difficulty is '${String(cipher.difficulty)}', not one of ${DIFFICULTY_VALUES.join(', ')}.`,
+      );
+    }
+
+    // Gap 8: a hash has no decryption, and saying so is the whole point. The
+    // check runs both ways, so a cipher cannot quietly lose its `decrypt` and a
+    // hash cannot quietly grow one.
+    if (cipher.oneWay === true && cipher.decrypt !== undefined) {
+      problems.push(
+        `${where}: oneWay is true but decrypt() exists. A one-way function has nothing to undo.`,
+      );
+    }
+    if (cipher.oneWay !== true && cipher.decrypt === undefined) {
+      problems.push(
+        `${where}: no decrypt(). Every cipher must be reversible, or declare oneWay: true.`,
+      );
+    }
+
     if (cipher.tiers.length === 0) {
       problems.push(`${where}: tiers is empty, so the cipher would render no panels.`);
     }
@@ -146,6 +212,27 @@ export function validateRegistry(entries: readonly { path: string; cipher: Ciphe
       }
       if (spec.kind === 'bytes' && spec.lengthBytes <= 0) {
         problems.push(`${where}: param '${spec.name}' has lengthBytes ${spec.lengthBytes}.`);
+      }
+    }
+
+    // Every cipher ships at least one worked example, and every example's key
+    // has to name params the cipher actually has — a typo there would silently
+    // do nothing, which is the worst way for a preset to fail.
+    if (cipher.examples === undefined || cipher.examples.length === 0) {
+      problems.push(`${where}: no examples. Every cipher needs at least one worked starting point.`);
+    }
+    const seenLabels = new Set<string>();
+    for (const example of cipher.examples ?? []) {
+      if (seenLabels.has(example.label)) {
+        problems.push(`${where}: two examples are both labelled '${example.label}'.`);
+      }
+      seenLabels.add(example.label);
+      for (const name of Object.keys(example.params ?? {})) {
+        if (!cipher.params.some((spec) => spec.name === name)) {
+          problems.push(
+            `${where}: example '${example.label}' sets param '${name}', which this cipher does not have.`,
+          );
+        }
       }
     }
 
@@ -216,6 +303,16 @@ export function getCipher(slug: string | undefined): CipherModule | undefined {
   return slug === undefined ? undefined : bySlug.get(slug);
 }
 
+/**
+ * The catalogue heading a cipher sits under, or undefined for a family with no
+ * sub-folders. Read from the folder, like everything else about grouping — a
+ * component that needed this used to have no way to ask.
+ */
+export function groupLabelOf(slug: string): string | undefined {
+  const id = groupOf.get(slug);
+  return id === undefined ? undefined : GROUPS.find((g) => g.id === id)?.label;
+}
+
 export interface CatalogueGroup {
   id: string;
   label: string;
@@ -245,4 +342,55 @@ export function populatedFamilies(): CatalogueFamily[] {
     const grouped = groups.reduce((n, g) => n + g.ciphers.length, 0);
     return { ...family, ciphers: members, groups: grouped === members.length ? groups : [] };
   }).filter((family) => family.ciphers.length > 0);
+}
+
+/**
+ * The words a search matches a cipher on, lowercased and joined once at module
+ * load. Name and blurb are the obvious ones; family and group labels are here so
+ * "polyalphabetic" finds Vigenere without Vigenere declaring the word, and
+ * `keywords` covers what a learner types when they do not know the name yet —
+ * "rotor" for Enigma, "public key" for RSA.
+ */
+const haystacks = new Map<string, string>(
+  entries.map(({ path, cipher }) => {
+    const group = groupFromPath(path);
+    const groupLabel = GROUPS.find((g) => g.id === group)?.label ?? '';
+    const familyLabel = FAMILIES.find((f) => f.id === cipher.family)?.label ?? '';
+    return [
+      cipher.slug,
+      [
+        cipher.name,
+        cipher.slug,
+        cipher.blurb,
+        familyLabel,
+        groupLabel,
+        cipher.year ?? '',
+        cipher.origin ?? '',
+        cipher.keyType ?? '',
+        SECURITY[cipher.security].label,
+        DIFFICULTY[cipher.difficulty].label,
+        ...(cipher.keywords ?? []),
+      ]
+        .join(' ')
+        .toLowerCase(),
+    ];
+  }),
+);
+
+/**
+ * Ciphers matching every whitespace-separated term in `query`, in catalogue
+ * order. An empty query returns everything, so a caller can render the full
+ * catalogue and the filtered one through the same path.
+ *
+ * Every term must match (AND, not OR): "modern block" should narrow, not widen.
+ * Substring rather than fuzzy — "vig" finds Vigenere, and a typo finds nothing
+ * rather than confidently finding the wrong cipher.
+ */
+export function searchCiphers(query: string): CipherModule[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [...ciphers];
+  return ciphers.filter((cipher) => {
+    const hay = haystacks.get(cipher.slug) ?? '';
+    return terms.every((term) => hay.includes(term));
+  });
 }

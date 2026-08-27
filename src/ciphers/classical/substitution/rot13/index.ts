@@ -78,11 +78,26 @@ const rot13Cipher: CipherModule = {
   name: 'ROT13',
   family: 'classical',
   year: '1980s',
+  origin: 'Usenet convention',
+  keyType: 'No key; the shift is fixed at 13',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['shift', 'caesar', 'usenet', 'spoiler', 'reciprocal'],
   blurb: 'Caesar, half a turn. Its own inverse, and never meant to be secret.',
   explainer,
   // No 'attack': running the cipher on the ciphertext is the decryption.
   tiers: ['encrypt', 'visualize', 'benchmark'],
   params: [],
+  examples: [
+    {
+      label: 'A spoiler, the Usenet way',
+      input: 'The butler did it.',
+    },
+    {
+      label: 'Apply it twice',
+      input: 'ROT13 twice is no encryption at all.',
+    },
+  ],
 
   encrypt(input: string): TraceResult {
     return rot13Trace(input);

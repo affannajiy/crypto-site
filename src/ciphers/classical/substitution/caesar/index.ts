@@ -6,7 +6,7 @@
  * is no algorithm in here — that lives in `caesar.ts`, where a test can reach it.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { caesarTrace } from './caesar';
+import { caesar, caesarTrace } from './caesar';
 import { bruteForceCaesar } from './attack';
 import CaesarRings from './CaesarRings';
 
@@ -88,6 +88,11 @@ const caesarCipher: CipherModule = {
   name: 'Caesar Cipher',
   family: 'classical',
   year: '~50 BC',
+  origin: 'Julius Caesar, by the account of Suetonius',
+  keyType: 'A single integer shift, 0 to 25',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['shift', 'monoalphabetic', 'brute force', 'frequency analysis', 'rome'],
   blurb: 'Every letter slides a fixed number of places along the alphabet.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -101,9 +106,30 @@ const caesarCipher: CipherModule = {
       default: 3,
     },
   ],
+  examples: [
+    {
+      label: 'The classic shift of three',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { shift: 3 },
+    },
+    {
+      label: 'A shift of thirteen is ROT13',
+      input: 'Caesar with a shift of 13 is its own inverse.',
+      params: { shift: 13 },
+    },
+    {
+      label: 'Something to break on the Attack tab',
+      input: 'Wkh ohjlrqv pdufk dw gdzq.',
+      params: { shift: 3 },
+    },
+  ],
 
   encrypt(input: string, p: Params): TraceResult {
     return caesarTrace(input, readShift(p), 'encrypt');
+  },
+
+  benchmark(input: string, p: Params): string {
+    return caesar(input, readShift(p), 'encrypt');
   },
 
   decrypt(input: string, p: Params): TraceResult {

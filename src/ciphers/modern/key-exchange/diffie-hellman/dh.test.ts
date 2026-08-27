@@ -175,7 +175,11 @@ describe('the module', () => {
     const params = { p: 104729, g: 3, a: 12345, b: 54321 };
     const encrypted = dhCipher.encrypt('Attack at dawn', params);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = dhCipher.decrypt(output, params);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = dhCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, params);
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn');
   });
 

@@ -12,19 +12,16 @@ import { useId, useState } from 'react';
 import type { ParamSpec, Params } from '../ciphers/types';
 import { fromHex, groupHex, randomBytes, toHex } from '../lib/format';
 
+// Re-exported so the many existing imports of `defaultParams` from this module
+// keep working; the implementation moved to a React-free file that a test and
+// the registry can also import.
+export { defaultParams } from '../ciphers/params';
+
 /**
  * Below this span a slider is the better control: the whole key space is visible
  * at a glance and arrow keys walk it. Above it, typing a number is faster.
  */
 const SLIDER_MAX_SPAN = 64;
-
-export function defaultParams(specs: readonly ParamSpec[]): Params {
-  const values: Params = {};
-  for (const spec of specs) {
-    values[spec.name] = spec.kind === 'bytes' ? toHex(randomBytes(spec.lengthBytes)) : spec.default;
-  }
-  return values;
-}
 
 interface ControlProps {
   spec: ParamSpec;

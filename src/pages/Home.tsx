@@ -1,5 +1,7 @@
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { populatedFamilies } from '../ciphers/registry';
+import { populatedFamilies, searchCiphers } from '../ciphers/registry';
+import { DifficultyBadge, SecurityBadge } from '../components/CipherFacts';
 import type { CipherModule, Tier } from '../ciphers/types';
 
 /**
@@ -33,6 +35,8 @@ function CipherGrid({ ciphers }: { ciphers: CipherModule[] }) {
             <span className="text-sm leading-relaxed text-ink-muted">{cipher.blurb}</span>
 
             <span className="mt-1 flex flex-wrap gap-1">
+              <SecurityBadge cipher={cipher} />
+              <DifficultyBadge cipher={cipher} />
               {cipher.tiers.map((tier) => (
                 <span
                   key={tier}
@@ -53,6 +57,37 @@ export default function Home() {
   const families = populatedFamilies();
   const total = families.reduce((sum, family) => sum + family.ciphers.length, 0);
 
+  const [query, setQuery] = useState('');
+  const searchId = useId();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // '/' jumps to the search box, the way it does in most tools that have one.
+  // Guarded against firing while the reader is typing into something else,
+  // which is the bug every implementation of this shortcut starts with.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target instanceof HTMLSelectElement)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+  const trimmed = query.trim();
+  // Searching is cheap — the haystacks are built once at module load — but the
+  // results feed a list that would otherwise rebuild on every unrelated render.
+  const results = useMemo(() => (trimmed === '' ? null : searchCiphers(trimmed)), [trimmed]);
+
   return (
     <div className="flex flex-col gap-10">
       <header className="flex w-full flex-col gap-3">
@@ -65,6 +100,41 @@ export default function Home() {
         </p>
       </header>
 
+      <div className="flex flex-col gap-2">
+        <label htmlFor={searchId} className="cl-label">
+          Search the catalogue
+        </label>
+        <input
+          id={searchId}
+          ref={searchRef}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="caesar, rotor, public key, transposition…  (press /, or Ctrl-K anywhere)"
+          className="cl-field w-full"
+          autoComplete="off"
+        />
+        {/* Announced rather than merely shown, so a screen reader hears the count
+            change as the query is typed. */}
+        <p aria-live="polite" className="text-sm text-ink-muted">
+          {results === null
+            ? `${total} ${total === 1 ? 'entry' : 'entries'} in the catalogue.`
+            : `${results.length} ${results.length === 1 ? 'match' : 'matches'} for “${trimmed}”.`}
+        </p>
+      </div>
+
+      {results !== null ? (
+        results.length === 0 ? (
+          <p className="cl-prose text-ink-muted">
+            Nothing matches every word of that. Search matches names, families, key types and
+            related terms — “rotor” finds Enigma, “public key” finds RSA — but it does not guess
+            at spellings, so a near miss returns nothing rather than the wrong cipher.
+          </p>
+        ) : (
+          <CipherGrid ciphers={results} />
+        )
+      ) : (
+        <>
       {families.map((family) => (
         <section key={family.id} aria-labelledby={`family-${family.id}`} className="flex flex-col gap-4">
           <div>
@@ -94,8 +164,13 @@ export default function Home() {
       ))}
 
       <p className="text-sm text-ink-subtle">
-        {total} {total === 1 ? 'entry' : 'entries'} so far, oldest ideas first. Hashing is next.
+        {total} {total === 1 ? 'entry' : 'entries'}, oldest ideas first. The same set reads
+        differently by <Link to="/timeline" className="underline underline-offset-4 hover:text-ink">date</Link>,
+        as <Link to="/compare" className="underline underline-offset-4 hover:text-ink">one table</Link>,
+        or <Link to="/playground" className="underline underline-offset-4 hover:text-ink">two at a time</Link>.
       </p>
+        </>
+      )}
     </div>
   );
 }

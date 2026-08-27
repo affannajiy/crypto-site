@@ -110,6 +110,11 @@ const affineCipher: CipherModule = {
   name: 'Affine Cipher',
   family: 'classical',
   year: 'ancient',
+  origin: 'Classical; a generalisation of Caesar',
+  keyType: 'Two integers a and b, with a coprime to 26',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['modular arithmetic', 'multiplicative', 'coprime', 'monoalphabetic'],
   blurb: 'Each letter is multiplied and shifted: a straight line in modular arithmetic.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -130,6 +135,23 @@ const affineCipher: CipherModule = {
       min: 0,
       max: 25,
       default: 8,
+    },
+  ],
+  examples: [
+    {
+      label: 'a = 5, b = 8',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { a: '5', b: 8 },
+    },
+    {
+      label: 'a = 1 is a plain Caesar',
+      input: 'With a of one this is only a shift.',
+      params: { a: '1', b: 3 },
+    },
+    {
+      label: 'a = 25 reverses the alphabet',
+      input: 'Multiplying by 25 walks backwards.',
+      params: { a: '25', b: 25 },
     },
   ],
 

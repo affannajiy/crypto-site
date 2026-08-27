@@ -78,11 +78,26 @@ const atbashCipher: CipherModule = {
   name: 'Atbash',
   family: 'classical',
   year: '~600 BC',
+  origin: 'Hebrew scribes',
+  keyType: 'No key at all',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['hebrew', 'reverse', 'reciprocal', 'keyless', 'monoalphabetic'],
   blurb: 'The alphabet reversed. No key, and its own inverse.',
   explainer,
   // No 'attack': the key space has one member, so the attack is the Encrypt tab.
   tiers: ['encrypt', 'visualize', 'benchmark'],
   params: [],
+  examples: [
+    {
+      label: 'A short message',
+      input: 'Meet me at the old bridge at midnight.',
+    },
+    {
+      label: 'Its own inverse',
+      input: 'Encrypt this twice and you get it back.',
+    },
+  ],
 
   encrypt(input: string): TraceResult {
     return atbashTrace(input);

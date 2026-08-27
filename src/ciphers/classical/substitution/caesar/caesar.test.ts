@@ -239,7 +239,11 @@ describe('the CipherModule wiring', () => {
     const encrypted = caesarCipher.encrypt('Hello, World!', params) as { output: string };
     expect(encrypted.output).toBe('Khoor, Zruog!');
 
-    const decrypted = caesarCipher.decrypt(encrypted.output, params) as { output: string };
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = caesarCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(encrypted.output, params) as { output: string };
     expect(decrypted.output).toBe('Hello, World!');
   });
 

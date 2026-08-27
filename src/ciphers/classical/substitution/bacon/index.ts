@@ -101,6 +101,11 @@ const baconCipher: CipherModule = {
   name: "Bacon's Cipher",
   family: 'classical',
   year: '1605',
+  origin: 'Francis Bacon',
+  keyType: 'No key; the secret is which typeface carries the bit',
+  security: 'broken',
+  difficulty: 'beginner',
+  keywords: ['steganography', 'binary', 'five bit', 'concealment', 'typeface'],
   blurb: 'Five-bit binary in 1605, and a message hidden in the case of ordinary text.',
   explainer,
   // No 'attack'. Bacon has no key: breaking it is noticing it, not searching.
@@ -123,6 +128,17 @@ const baconCipher: CipherModule = {
       label: 'Carrier text (leave empty for plain A/B)',
       default: 'the quick brown fox jumps over the lazy dog and then trots quietly home again',
       placeholder: 'A sentence long enough to hide the message in',
+    },
+  ],
+  examples: [
+    {
+      label: 'Hidden in an ordinary sentence',
+      input: 'attack',
+    },
+    {
+      label: 'The 26-letter variant',
+      input: 'hidden',
+      params: { variant: '26' },
     },
   ],
 

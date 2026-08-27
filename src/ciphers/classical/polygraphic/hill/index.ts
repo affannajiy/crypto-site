@@ -21,6 +21,7 @@
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
 import { type Matrix, determinant, hillTrace, isInvertible } from './hill';
+import { randomIntInclusive } from '../../../params';
 import HillMatrix from './HillMatrix';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -140,12 +141,49 @@ const hillCipher: CipherModule = {
   name: 'Hill',
   family: 'classical',
   year: '1929',
+  origin: 'Lester S. Hill',
+  keyType: 'An invertible matrix modulo 26',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['matrix', 'linear algebra', 'diffusion', 'known plaintext', 'determinant'],
   blurb: 'Letters as vectors, the key as a matrix. The first cipher here with real diffusion.',
   explainer,
   // No 'attack'. The honest attack on Hill needs known plaintext, which
   // `attack(ciphertext)` cannot express. See the note at the top of this file.
   tiers: ['encrypt', 'visualize', 'benchmark'],
   params: [entry('a', 'Matrix a (top left)', 3), entry('b', 'Matrix b (top right)', 3), entry('c', 'Matrix c (bottom left)', 2), entry('d', 'Matrix d (bottom right)', 5)],
+  examples: [
+    {
+      label: 'The standard worked matrix',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { a: 3, b: 3, c: 2, d: 5 },
+    },
+    {
+      label: 'A matrix with no inverse',
+      input: 'This key cannot be undone.',
+      demonstratesError: true,
+      params: { a: 2, b: 4, c: 1, d: 2 },
+    },
+  ],
+
+  /**
+   * Four entries whose determinant is invertible modulo 26.
+   *
+   * Rejection sampling rather than construction: most matrices work, the test is
+   * one determinant, and a loop that reads like the condition it enforces is
+   * worth more here than a clever generator that does not. The bound exists so a
+   * bug cannot hang the page rather than because the search is slow.
+   */
+  randomKey(): Params {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const a = randomIntInclusive(0, 25);
+      const b = randomIntInclusive(0, 25);
+      const c = randomIntInclusive(0, 25);
+      const d = randomIntInclusive(0, 25);
+      if (isInvertible([a, b, c, d])) return { a, b, c, d };
+    }
+    return { a: 3, b: 3, c: 2, d: 5 };
+  },
 
   encrypt(input: string, p: Params): TraceResult {
     return hillTrace(input, readMatrix(p), 'encrypt');

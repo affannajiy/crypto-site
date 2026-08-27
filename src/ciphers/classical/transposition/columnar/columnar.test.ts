@@ -213,7 +213,11 @@ describe('the module', () => {
   it('round-trips through the module', () => {
     const encrypted = columnarCipher.encrypt('Attack at dawn!', { keyword: 'KEYWORD' });
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = columnarCipher.decrypt(output, { keyword: 'KEYWORD' });
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = columnarCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, { keyword: 'KEYWORD' });
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn!');
   });
 

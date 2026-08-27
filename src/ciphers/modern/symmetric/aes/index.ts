@@ -15,7 +15,7 @@
  * That is what the section is about.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { type Mode, aesTrace, readIv, readKey } from './aes';
+import { type Mode, aes, aesTrace, readIv, readKey } from './aes';
 import AesRounds from './AesRounds';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -126,6 +126,11 @@ const aesCipher: CipherModule = {
   name: 'AES',
   family: 'symmetric',
   year: '2001',
+  origin: 'Joan Daemen and Vincent Rijmen, as Rijndael',
+  keyType: 'A 128-bit key, as 32 hex characters',
+  security: 'secure',
+  difficulty: 'advanced',
+  keywords: ['rijndael', 'block cipher', 'sbox', 'round', 'state matrix', 'fips 197', 'modern'],
   blurb: 'The modern standard. Ten rounds of confusion and diffusion, shown one at a time.',
   explainer,
   // No 'attack'. There is no known practical attack on full AES, and a button
@@ -138,6 +143,7 @@ const aesCipher: CipherModule = {
       label: 'Key (32, 48 or 64 hex digits — 128, 192 or 256 bits)',
       default: '000102030405060708090a0b0c0d0e0f',
       placeholder: '32 hex digits for AES-128',
+      randomise: { alphabet: 'hex', length: 32 },
     },
     {
       kind: 'select',
@@ -155,11 +161,28 @@ const aesCipher: CipherModule = {
       label: 'IV (32 hex digits; CBC only)',
       default: '0f0e0d0c0b0a09080706050403020100',
       placeholder: '32 hex digits',
+      randomise: { alphabet: 'hex', length: 32 },
+    },
+  ],
+  examples: [
+    {
+      label: 'A sentence, in CBC',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'CBC', iv: '0f0e0d0c0b0a09080706050403020100' },
+    },
+    {
+      label: 'One block, in ECB, so the rounds are the whole story',
+      input: 'Sixteen bytes..',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'ECB', iv: '0f0e0d0c0b0a09080706050403020100' },
     },
   ],
 
   encrypt(input: string, p: Params): TraceResult {
     return aesTrace(input, readOptions(p), 'encrypt');
+  },
+
+  benchmark(input: string, p: Params): string {
+    return aes(input, readOptions(p), 'encrypt');
   },
 
   decrypt(input: string, p: Params): TraceResult {

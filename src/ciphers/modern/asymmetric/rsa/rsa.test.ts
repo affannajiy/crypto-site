@@ -217,7 +217,11 @@ describe('the module', () => {
     const params = { p: 61, q: 53, e: 17 };
     const encrypted = rsaCipher.encrypt('Attack at dawn', params);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = rsaCipher.decrypt(output, params);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = rsaCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, params);
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn');
   });
 

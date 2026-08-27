@@ -16,7 +16,7 @@
  * subtraction, Porta by pairing, Enigma by reflection, and now by XOR.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { chacha20Trace, readKey, readNonce } from './chacha20';
+import { chacha20Trace, encryptText, readKey, readNonce } from './chacha20';
 import ChachaState from './ChachaState';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -113,6 +113,11 @@ const chachaCipher: CipherModule = {
   name: 'ChaCha20',
   family: 'symmetric',
   year: '2008',
+  origin: 'Daniel J. Bernstein',
+  keyType: 'A 256-bit key and a 96-bit nonce, never reused',
+  security: 'secure',
+  difficulty: 'advanced',
+  keywords: ['stream cipher', 'salsa20', 'nonce', 'keystream', 'arx', 'rfc 8439', 'modern'],
   blurb: 'A keystream, XORed. Fast without hardware help, and ruined by one repeated nonce.',
   explainer,
   // No 'attack'. The best public result reaches 7 of 20 rounds.
@@ -124,6 +129,7 @@ const chachaCipher: CipherModule = {
       label: 'Key (64 hex digits — always 256 bits)',
       default: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
       placeholder: '64 hex digits',
+      randomise: { alphabet: 'hex', length: 64 },
     },
     {
       kind: 'text',
@@ -131,12 +137,29 @@ const chachaCipher: CipherModule = {
       label: 'Nonce (24 hex digits — never reuse one with the same key)',
       default: '000000090000004a00000000',
       placeholder: '24 hex digits',
+      randomise: { alphabet: 'hex', length: 24 },
     },
     { kind: 'number', name: 'counter', label: 'Block counter', min: 0, max: 65535, default: 1 },
+  ],
+  examples: [
+    {
+      label: 'The RFC 8439 sunscreen plaintext',
+      input: 'Ladies and Gentlemen of the class of \'99: If I could offer you only one tip for the future, sunscreen would be it.',
+      params: { key: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', nonce: '000000000000004a00000000', counter: 1 },
+    },
+    {
+      label: 'A sentence',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', nonce: '000000090000004a00000000', counter: 1 },
+    },
   ],
 
   encrypt(input: string, p: Params): TraceResult {
     return chacha20Trace(input, readOptions(p), 'encrypt');
+  },
+
+  benchmark(input: string, p: Params): string {
+    return encryptText(input, readOptions(p));
   },
 
   // Identical to `encrypt` in every respect but what it is handed. XOR is its own

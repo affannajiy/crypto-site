@@ -69,6 +69,11 @@ const portaCipher: CipherModule = {
   name: 'Porta',
   family: 'classical',
   year: '1563',
+  origin: 'Giovan Battista della Porta',
+  keyType: 'A keyword selecting one of thirteen reciprocal rows',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['polyalphabetic', 'reciprocal', 'tableau', 'porta'],
   blurb: 'Thirteen reciprocal rows instead of twenty-six, which halves the work both ways.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -80,6 +85,19 @@ const portaCipher: CipherModule = {
       label: 'Key',
       default: 'PORTA',
       placeholder: 'A word. Letters only; everything else is ignored.',
+      randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  examples: [
+    {
+      label: 'Thirteen reciprocal rows',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: 'PORTA' },
+    },
+    {
+      label: 'Encrypting twice returns the message',
+      input: 'Porta is its own inverse, like Beaufort.',
+      params: { key: 'KEY' },
     },
   ],
 

@@ -97,6 +97,11 @@ const columnarCipher: CipherModule = {
   name: 'Columnar Transposition',
   family: 'classical',
   year: '1500s',
+  origin: 'European chancelleries',
+  keyType: 'A keyword giving the column read-out order',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['transposition', 'grid', 'anagram', 'permutation'],
   blurb: 'Write it in a grid, read the columns out in keyword order.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -107,6 +112,19 @@ const columnarCipher: CipherModule = {
       label: 'Keyword',
       default: 'KEYWORD',
       placeholder: 'A word — its letters set the column order',
+      randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  examples: [
+    {
+      label: 'A five-letter keyword',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'KEYWORD' },
+    },
+    {
+      label: 'Short enough for the attack to find',
+      input: 'Hold the bridge until dawn.',
+      params: { keyword: 'ZEBRA' },
     },
   ],
 

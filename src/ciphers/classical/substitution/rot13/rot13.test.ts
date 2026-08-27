@@ -125,7 +125,11 @@ describe('the module', () => {
   it('decrypts with the identical operation', () => {
     const encrypted = rot13Cipher.encrypt('Attack at dawn!', {});
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = rot13Cipher.decrypt(output, {});
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = rot13Cipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, {});
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn!');
   });
 

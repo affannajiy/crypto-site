@@ -15,7 +15,8 @@
  * The gap is now worth fixing, and CLAUDE.md records that.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { MAX_PRIME, buildKeys, rsaTrace } from './rsa';
+import { MAX_PRIME, buildKeys, gcd, isPrime, rsaTrace } from './rsa';
+import { randomIntInclusive } from '../../../params';
 import RsaKeys from './RsaKeys';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -121,6 +122,11 @@ const rsaCipher: CipherModule = {
   name: 'RSA',
   family: 'asymmetric',
   year: '1977',
+  origin: 'Rivest, Shamir and Adleman',
+  keyType: 'A public exponent and modulus; a private exponent kept back',
+  security: 'secure',
+  difficulty: 'advanced',
+  keywords: ['public key', 'asymmetric', 'factoring', 'modular exponentiation', 'primes', 'totient'],
   blurb: 'Two keys, one published. The first cipher here that needs no shared secret.',
   explainer,
   // No 'attack'. RSA is broken through the public key, which is a param rather
@@ -131,6 +137,49 @@ const rsaCipher: CipherModule = {
     { kind: 'number', name: 'q', label: 'q (a different prime)', min: 2, max: MAX_PRIME, default: 53 },
     { kind: 'number', name: 'e', label: 'e (public exponent, coprime with φ(n))', min: 2, max: 65537, default: 17 },
   ],
+  examples: [
+    {
+      label: 'The textbook primes',
+      input: 'Meet me at dawn.',
+      params: { p: 61, q: 53, e: 17 },
+    },
+    {
+      label: 'Larger toy primes',
+      input: 'Hold the bridge.',
+      params: { p: 257, q: 263, e: 65537 },
+    },
+  ],
+
+  /**
+   * Two different primes and an exponent coprime with phi(n).
+   *
+   * p and q are drawn from the primes this page can actually handle, and the
+   * lower bound is what keeps n above 255 — the page encrypts one byte at a
+   * time, so a smaller n produces a key that is valid arithmetic and useless
+   * here. e is tried against phi(n) rather than assumed: 65537 is the real-world
+   * answer and is larger than phi for toy primes, so the honest generator walks
+   * the small odd candidates instead.
+   */
+  randomKey(): Params {
+    const prime = () => {
+      for (let tries = 0; tries < 500; tries += 1) {
+        const candidate = randomIntInclusive(17, MAX_PRIME);
+        if (isPrime(candidate)) return candidate;
+      }
+      return 61;
+    };
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const p = prime();
+      const q = prime();
+      if (p === q || p * q <= 255) continue;
+      const phi = BigInt(p - 1) * BigInt(q - 1);
+      const e = [3, 5, 7, 11, 13, 17, 257, 65537].find(
+        (candidate) => BigInt(candidate) < phi && gcd(BigInt(candidate), phi) === 1n,
+      );
+      if (e !== undefined) return { p, q, e };
+    }
+    return { p: 61, q: 53, e: 17 };
+  },
 
   encrypt(input: string, p: Params): TraceResult {
     return rsaTrace(input, readKeys(p), 'encrypt');

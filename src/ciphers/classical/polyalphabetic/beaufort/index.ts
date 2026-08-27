@@ -95,6 +95,11 @@ const beaufortCipher: CipherModule = {
   name: 'Beaufort',
   family: 'classical',
   year: '1857',
+  origin: 'Sir Francis Beaufort',
+  keyType: 'A keyword, subtracted rather than added',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['polyalphabetic', 'reciprocal', 'involution', 'vigenere'],
   blurb: 'Vigenère with the subtraction the other way round, which makes it its own inverse.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -106,6 +111,19 @@ const beaufortCipher: CipherModule = {
       label: 'Key',
       default: 'BEAUFORT',
       placeholder: 'A word. Letters only; everything else is ignored.',
+      randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  examples: [
+    {
+      label: 'Its own inverse',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: 'NAVY' },
+    },
+    {
+      label: 'Enough text to attack',
+      input: 'Send the second company to the eastern gate before dawn and hold there until the guns arrive.',
+      params: { key: 'NAVY' },
     },
   ],
 

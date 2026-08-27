@@ -171,7 +171,11 @@ describe('the module', () => {
     const key = { keyword: 'PAINVIN1918', transposition: 'ARGUS' };
     const encrypted = adfgvxCipher.encrypt('Attack at 0600', key);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = adfgvxCipher.decrypt(output, key);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = adfgvxCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, key);
     expect('output' in decrypted && decrypted.output).toBe('ATTACKAT0600');
   });
 

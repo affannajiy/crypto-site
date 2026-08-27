@@ -234,7 +234,11 @@ describe('the module', () => {
   it('round-trips through the module', () => {
     const encrypted = oneTimePadCipher.encrypt('Attack at dawn!', { pad: 'XMCKLQWRTZPBVNH' });
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = oneTimePadCipher.decrypt(output, { pad: 'XMCKLQWRTZPBVNH' });
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = oneTimePadCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, { pad: 'XMCKLQWRTZPBVNH' });
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn!');
   });
 

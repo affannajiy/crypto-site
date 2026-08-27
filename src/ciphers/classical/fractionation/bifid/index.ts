@@ -133,6 +133,11 @@ const bifidCipher: CipherModule = {
   name: 'Bifid',
   family: 'classical',
   year: '1901',
+  origin: 'Felix Delastelle',
+  keyType: 'A keyed 5x5 square and a period',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['delastelle', 'fractionation', 'polybius', 'period'],
   blurb: 'Splits each letter into two coordinates and mixes the halves. No letter survives whole.',
   explainer,
   // No 'attack'. 25! squares, an unknown period, and no partial credit to climb.
@@ -145,6 +150,7 @@ const bifidCipher: CipherModule = {
       label: 'Square keyword',
       default: 'DELASTELLE',
       placeholder: 'A word. Fills the square, then the rest of the alphabet.',
+      randomise: { alphabet: 'letters', length: 8 },
     },
     {
       kind: 'number',
@@ -153,6 +159,18 @@ const bifidCipher: CipherModule = {
       min: 0,
       max: MAX_PERIOD,
       default: 5,
+    },
+  ],
+  examples: [
+    {
+      label: 'Delastelle\'s own key',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'DELASTELLE', period: 5 },
+    },
+    {
+      label: 'A long period mixes further',
+      input: 'Send the second company to the eastern gate before dawn.',
+      params: { keyword: 'ZEBRAS', period: 11 },
     },
   ],
 

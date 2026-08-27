@@ -14,7 +14,7 @@
  * money. Key size and cipher quality are independent, and here they are inverted.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { type Mode, desTrace, readIv, readKey } from './des';
+import { type Mode, des, desTrace, readIv, readKey } from './des';
 import FeistelRounds from './FeistelRounds';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -116,6 +116,11 @@ const desCipher: CipherModule = {
   name: 'DES',
   family: 'symmetric',
   year: '1977',
+  origin: 'IBM and the NSA, as the Data Encryption Standard',
+  keyType: 'A 56-bit key, carried in 64 bits',
+  security: 'deprecated',
+  difficulty: 'advanced',
+  keywords: ['feistel', 'block cipher', 'brute force', 'deep crack', 'nist', 'modern'],
   blurb: 'Sixteen Feistel rounds. A sound design with a key that was too short from the start.',
   explainer,
   // No 'attack'. The attack is 2^56 keys, which is hardware and money rather than
@@ -128,6 +133,7 @@ const desCipher: CipherModule = {
       label: 'Key (16 hex digits — 64 bits, of which 56 are used)',
       default: '133457799bbcdff1',
       placeholder: '16 hex digits',
+      randomise: { alphabet: 'hex', length: 16 },
     },
     {
       kind: 'select',
@@ -145,11 +151,28 @@ const desCipher: CipherModule = {
       label: 'IV (16 hex digits; CBC only)',
       default: '0f0e0d0c0b0a0908',
       placeholder: '16 hex digits',
+      randomise: { alphabet: 'hex', length: 16 },
+    },
+  ],
+  examples: [
+    {
+      label: 'The classic DES test vector',
+      input: '0123456789ABCDEF',
+      params: { key: '133457799bbcdff1', mode: 'ECB', iv: '0f0e0d0c0b0a0908' },
+    },
+    {
+      label: 'A sentence, in CBC',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: '133457799bbcdff1', mode: 'CBC', iv: '0f0e0d0c0b0a0908' },
     },
   ],
 
   encrypt(input: string, p: Params): TraceResult {
     return desTrace(input, readOptions(p), 'encrypt');
+  },
+
+  benchmark(input: string, p: Params): string {
+    return des(input, readOptions(p), 'encrypt');
   },
 
   decrypt(input: string, p: Params): TraceResult {

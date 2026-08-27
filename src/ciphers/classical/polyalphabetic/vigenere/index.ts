@@ -107,6 +107,11 @@ const vigenereCipher: CipherModule = {
   name: 'Vigenere Cipher',
   family: 'classical',
   year: '1553',
+  origin: 'Giovan Battista Bellaso, misattributed to Blaise de Vigenere',
+  keyType: 'A repeating keyword',
+  security: 'broken',
+  difficulty: 'intermediate',
+  keywords: ['polyalphabetic', 'kasiski', 'index of coincidence', 'tableau', 'le chiffre indechiffrable'],
   blurb: 'A repeating keyword gives every letter its own Caesar shift.',
   explainer,
   tiers: ['encrypt', 'attack', 'visualize', 'benchmark'],
@@ -117,6 +122,24 @@ const vigenereCipher: CipherModule = {
       label: 'Keyword',
       default: 'LEMON',
       placeholder: 'Letters only — spaces and punctuation are ignored',
+      randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  examples: [
+    {
+      label: 'The textbook keyword',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { key: 'LEMON' },
+    },
+    {
+      label: 'A one-letter key is a Caesar',
+      input: 'A key of length one is only a shift.',
+      params: { key: 'D' },
+    },
+    {
+      label: 'Long enough to need Kasiski',
+      input: 'We attack the eastern gate at dawn and hold the bridge until the second company arrives with the guns.',
+      params: { key: 'NAVY' },
     },
   ],
 

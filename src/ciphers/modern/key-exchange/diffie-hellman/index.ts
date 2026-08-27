@@ -26,7 +26,8 @@
  * one that actually matters.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { MAX_PRIME, dhTrace, exchange } from './dh';
+import { MAX_PRIME, dhTrace, exchange, isPrime } from './dh';
+import { randomIntInclusive } from '../../../params';
 import DhChannel from './DhChannel';
 
 /** Params arrive as `string | number` because they come from form controls. */
@@ -144,6 +145,11 @@ const dhCipher: CipherModule = {
   name: 'Diffie-Hellman',
   family: 'asymmetric',
   year: '1976',
+  origin: 'Whitfield Diffie and Martin Hellman',
+  keyType: 'No shared key beforehand; two private exponents and a public prime',
+  security: 'secure',
+  difficulty: 'advanced',
+  keywords: ['key exchange', 'public key', 'discrete logarithm', 'shared secret', 'merkle'],
   blurb: 'Not a cipher: two strangers agreeing on a secret in public, with Eve recording it all.',
   explainer,
   // No 'attack'. The break needs the public values rather than a ciphertext, and
@@ -155,6 +161,44 @@ const dhCipher: CipherModule = {
     { kind: 'number', name: 'a', label: "Alice's secret", min: 1, max: MAX_PRIME, default: 12345 },
     { kind: 'number', name: 'b', label: "Bob's secret", min: 1, max: MAX_PRIME, default: 54321 },
   ],
+  examples: [
+    {
+      label: 'A public prime and two private exponents',
+      input: 'Meet me at dawn.',
+      params: { p: 104729, g: 3, a: 12345, b: 54321 },
+    },
+    {
+      label: 'Different privates, different secret',
+      input: 'Hold the bridge.',
+      params: { p: 104729, g: 3, a: 777, b: 31337 },
+    },
+  ],
+
+  /**
+   * A public prime, a generator below it, and two private exponents below p - 1.
+   *
+   * Every bound here is one of `exchange`'s own refusals, which is the point:
+   * these four numbers are only valid relative to each other, so no per-param
+   * randomiser could produce them. The prime is kept large enough that the
+   * discrete log on the Visualize tab is worth watching and small enough that it
+   * still finishes.
+   */
+  randomKey(): Params {
+    let prime = 104729;
+    for (let tries = 0; tries < 500; tries += 1) {
+      const candidate = randomIntInclusive(50021, MAX_PRIME);
+      if (isPrime(candidate)) {
+        prime = candidate;
+        break;
+      }
+    }
+    return {
+      p: prime,
+      g: randomIntInclusive(2, Math.min(97, prime - 1)),
+      a: randomIntInclusive(1, prime - 2),
+      b: randomIntInclusive(1, prime - 2),
+    };
+  },
 
   encrypt(input: string, p: Params): TraceResult {
     return dhTrace(input, readExchange(p), 'encrypt');

@@ -85,6 +85,11 @@ const trifidCipher: CipherModule = {
   name: 'Trifid',
   family: 'classical',
   year: '1902',
+  origin: 'Felix Delastelle',
+  keyType: 'A keyed 27-symbol cube and a period',
+  security: 'broken',
+  difficulty: 'advanced',
+  keywords: ['delastelle', 'fractionation', 'cube', 'period'],
   blurb: 'Three coordinates instead of two, on 27 symbols that fit a cube exactly.',
   explainer,
   // No 'attack'. Bifid's obstacles with a larger key space. See the file header.
@@ -96,6 +101,7 @@ const trifidCipher: CipherModule = {
       label: 'Cube keyword',
       default: 'DELASTELLE',
       placeholder: 'A word. Fills the cube, then the rest of the alphabet.',
+      randomise: { alphabet: 'letters', length: 8 },
     },
     {
       kind: 'number',
@@ -104,6 +110,18 @@ const trifidCipher: CipherModule = {
       min: 0,
       max: MAX_PERIOD,
       default: 5,
+    },
+  ],
+  examples: [
+    {
+      label: 'A 27-symbol cube',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'DELASTELLE', period: 5 },
+    },
+    {
+      label: 'Period of one is no fractionation at all',
+      input: 'With a period of one nothing is mixed between letters.',
+      params: { keyword: 'ZEBRAS', period: 1 },
     },
   ],
 

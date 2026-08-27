@@ -269,7 +269,11 @@ describe('the module', () => {
   it('round-trips through the module', () => {
     const encrypted = affineCipher.encrypt('Attack at dawn!', { a: '11', b: 3 });
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = affineCipher.decrypt(output, { a: '11', b: 3 });
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = affineCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, { a: '11', b: 3 });
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn!');
   });
 

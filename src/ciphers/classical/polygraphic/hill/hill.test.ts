@@ -261,7 +261,11 @@ describe('the module', () => {
     const key = { a: 3, b: 3, c: 2, d: 5 };
     const encrypted = hillCipher.encrypt('ATTACKATDAWN', key);
     const output = 'output' in encrypted ? encrypted.output : '';
-    const decrypted = hillCipher.decrypt(output, key);
+    // `decrypt` is optional on the contract now that a hash can declare itself
+    // one-way, so a cipher's own test says out loud that it has one.
+    const reverse = hillCipher.decrypt;
+    if (reverse === undefined) throw new Error('This cipher must be reversible.');
+    const decrypted = reverse(output, key);
     expect('output' in decrypted && decrypted.output).toBe('ATTACKATDAWN');
   });
 

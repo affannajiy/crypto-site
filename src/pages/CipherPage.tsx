@@ -1,14 +1,16 @@
 import { Link, useParams } from 'react-router-dom';
-import { getCipher } from '../ciphers/registry';
+import { FAMILIES, getCipher } from '../ciphers/registry';
+import CipherFacts, { SecurityBadge } from '../components/CipherFacts';
 import CipherWorkbench from '../components/CipherWorkbench';
 import Markdown from '../components/Markdown';
 
-const FAMILY_LABELS: Record<string, string> = {
-  classical: 'Classical',
-  hashing: 'Hashing',
-  symmetric: 'Symmetric',
-  asymmetric: 'Asymmetric',
-};
+/**
+ * The family label comes from the registry rather than a map kept here. The map
+ * this replaced had no 'encoding' entry, so Morse — the one cipher whose whole
+ * point is which family it is in — printed a raw 'encoding' beside its name.
+ */
+const familyLabel = (family: string) =>
+  FAMILIES.find((f) => f.id === family)?.label ?? family;
 
 export default function CipherPage() {
   const { slug } = useParams();
@@ -48,14 +50,17 @@ export default function CipherPage() {
             {cipher.name}
           </h1>
           <span className="rounded border border-line bg-sunken px-1.5 py-0.5 text-xs text-ink-muted">
-            {FAMILY_LABELS[cipher.family] ?? cipher.family}
+            {familyLabel(cipher.family)}
           </span>
+          <SecurityBadge cipher={cipher} />
           {cipher.year !== undefined && (
             <span className="font-mono text-sm text-ink-subtle">{cipher.year}</span>
           )}
         </div>
         <p className="cl-prose text-ink-muted">{cipher.blurb}</p>
       </header>
+
+      <CipherFacts cipher={cipher} />
 
       {/* Remounts on a slug change so no state survives from the previous cipher. */}
       <CipherWorkbench key={cipher.slug} cipher={cipher} />
