@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COURSE_SLUGS,
+  allCiphers,
   ciphers,
   getCipher,
   populatedFamilies,
@@ -132,10 +134,21 @@ describe('the live registry', () => {
     expect(ciphers.map((c) => c.slug)).toContain('caesar');
   });
 
-  it('passes its own validation rules', () => {
+  it('passes its own validation rules, hidden ciphers included', () => {
     expect(() =>
-      validateRegistry(ciphers.map((cipher) => ({ path: `./${cipher.slug}`, cipher }))),
+      validateRegistry(allCiphers.map((cipher) => ({ path: `./${cipher.slug}`, cipher }))),
     ).not.toThrow();
+  });
+
+  it('shows exactly the course ciphers, and keeps the rest on disk', () => {
+    expect(ciphers.map((c) => c.slug).sort()).toEqual([...COURSE_SLUGS].sort());
+    expect(allCiphers.length).toBeGreaterThan(ciphers.length);
+  });
+
+  it('gives a hidden cipher no page and no search hit', () => {
+    expect(allCiphers.some((c) => c.slug === 'enigma')).toBe(true);
+    expect(getCipher('enigma')).toBeUndefined();
+    expect(searchCiphers('enigma')).toEqual([]);
   });
 
   it('looks a cipher up by slug and returns undefined for anything else', () => {
@@ -172,7 +185,7 @@ describe('security and difficulty', () => {
   it('rates the encoding family as not encryption', () => {
     // The whole reason Morse is in the catalogue is that it is not a cipher. A
     // rating of 'broken' would undo that in one word.
-    for (const cipher of ciphers.filter((c) => c.family === 'encoding')) {
+    for (const cipher of allCiphers.filter((c) => c.family === 'encoding')) {
       expect(cipher.security).toBe('not-encryption');
     }
   });
@@ -180,7 +193,7 @@ describe('security and difficulty', () => {
   it('rates every classical cipher as broken, except the one-time pad', () => {
     // The Classical family description promises every one of them is broken.
     // This test is what keeps that promise true as ciphers are added.
-    for (const cipher of ciphers.filter((c) => c.family === 'classical')) {
+    for (const cipher of allCiphers.filter((c) => c.family === 'classical')) {
       const expected = cipher.slug === 'one-time-pad' ? 'perfect' : 'broken';
       expect([cipher.slug, cipher.security]).toEqual([cipher.slug, expected]);
     }
@@ -234,7 +247,7 @@ describe('examples', () => {
   it('runs every example, except the ones that exist to fail', () => {
     // A preset that throws unexpectedly is worse than no preset, and every one of
     // these is hand-written, so this is the test that catches a typo in a hex key.
-    for (const cipher of ciphers) {
+    for (const cipher of allCiphers) {
       for (const example of cipher.examples ?? []) {
         const params = { ...defaultParams(cipher.params), ...example.params };
         const run = () => cipher.encrypt(example.input, params);
@@ -257,20 +270,19 @@ describe('searchCiphers', () => {
   it('matches a group label the cipher never declares', () => {
     const slugs = searchCiphers('polyalphabetic').map((c) => c.slug);
     expect(slugs).toContain('vigenere');
-    expect(slugs).toContain('beaufort');
   });
 
   it('matches a keyword rather than a name', () => {
-    // "rotor" appears nowhere in Enigma's name or blurb. That is the point of
-    // `keywords`: a learner searches for the concept they remember.
-    expect(searchCiphers('rotor').map((c) => c.slug)).toEqual(['enigma']);
+    // "columnar" appears nowhere in Row Transposition's name or blurb. That is
+    // the point of `keywords`: a learner searches for the name they remember.
+    expect(searchCiphers('columnar').map((c) => c.slug)).toEqual(['row-transposition']);
   });
 
   it('narrows on every term rather than widening', () => {
-    // 'modern' alone reaches all three block-and-stream ciphers; adding a second
-    // term must cut the list down, not add to it.
-    expect(searchCiphers('modern').length).toBeGreaterThan(1);
-    expect(searchCiphers('modern feistel').map((c) => c.slug)).toEqual(['des']);
+    // 'transposition' alone reaches both transpositions; adding a second term
+    // must cut the list down, not add to it.
+    expect(searchCiphers('transposition').length).toBeGreaterThan(1);
+    expect(searchCiphers('transposition zigzag').map((c) => c.slug)).toEqual(['rail-fence']);
   });
 
   it('returns nothing for a typo rather than guessing', () => {
@@ -289,7 +301,7 @@ describe('the untraced benchmark path', () => {
    * The example's params are used rather than the defaults, because a fast path
    * that ignores a param is exactly the bug this catches.
    */
-  const withBenchmark = ciphers.filter((cipher) => cipher.benchmark !== undefined);
+  const withBenchmark = allCiphers.filter((cipher) => cipher.benchmark !== undefined);
 
   it('is offered by the ciphers where the trace dominates the measurement', () => {
     expect(withBenchmark.length).toBeGreaterThan(0);

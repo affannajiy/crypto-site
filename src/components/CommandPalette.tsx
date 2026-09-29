@@ -12,11 +12,11 @@ import { SECURITY, ciphers, groupLabelOf, searchCiphers } from '../ciphers/regis
  *
  * It matches through `searchCiphers`, so it inherits the catalogue's behaviour
  * exactly: every term must match, substrings rather than fuzzy, and keywords
- * count — "rotor" finds Enigma. A palette with its own private matching rules
- * would be a second search engine to keep honest.
+ * count — "columnar" finds Row Transposition. A palette with its own private
+ * matching rules would be a second search engine to keep honest.
  *
  * The pages that are not ciphers are listed here rather than derived, because
- * there are five of them and no registry to read. If that list grows past a
+ * there are four of them and no registry to read. If that list grows past a
  * handful it wants the same treatment the ciphers got.
  */
 interface Destination {
@@ -34,12 +34,6 @@ const PAGES: readonly Destination[] = [
     hay: 'catalogue home ciphers browse family',
   },
   {
-    to: '/timeline',
-    title: 'Timeline',
-    detail: 'The same entries, in the order they happened',
-    hay: 'timeline history chronological year era',
-  },
-  {
     to: '/compare',
     title: 'Compare',
     detail: 'All the metadata on one sortable table',
@@ -48,8 +42,8 @@ const PAGES: readonly Destination[] = [
   {
     to: '/playground',
     title: 'Playground',
-    detail: 'One message through two ciphers at once',
-    hay: 'playground side by side two ciphers diff compare',
+    detail: 'One message through every cipher at once',
+    hay: 'playground all ciphers at once rows compare encrypt decrypt',
   },
   {
     to: '/analyse',

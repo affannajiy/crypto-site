@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ERAS, byYear, eraOf, parseYear } from './chronology';
-import { ciphers } from '../ciphers/registry';
+import { allCiphers as ciphers } from '../ciphers/registry';
 
 describe('parseYear', () => {
   it('reads a plain year', () => {

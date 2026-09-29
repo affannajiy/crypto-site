@@ -18,6 +18,22 @@ Non-goals, enforced:
 - No claim, in copy or in a comment, that this is safe for real use.
 - No cipher outside the scope of the current phase.
 
+## Course scope
+
+The site shows only the six ciphers of the owner's course: Lecture 03 and Lab 03 on classical
+ciphers. They are Caesar, Monoalphabetic, Playfair, Vigenère, Rail Fence and Row Transposition.
+The other entries stay in the repository. They are hidden, not deleted.
+
+- `COURSE_SLUGS` in `registry.ts` is the list of shown ciphers.
+- `ciphers` is the shown list. Every page reads it.
+- `allCiphers` is every folder. Only tests and validation read it.
+- A hidden cipher has no page, no search hit and no Playground row. Its URL gives the not-found
+  page.
+- Validation and tests still cover every folder. Therefore hidden code does not rot.
+- To show a hidden cipher again, add its slug to `COURSE_SLUGS`.
+- Each course cipher's default key and first example are the textbook example. The Playground
+  and the tests rely on this.
+
 ## Commands
 
 ```bash
@@ -74,9 +90,10 @@ than a footnote. Encoding mistaken for encryption is the most common error in th
 
 `src/ciphers/registry.ts` collects every `./**/index.ts` with `import.meta.glob`.
 
-To add a cipher, **create one folder**. Do nothing else. There is no central list. There is
-no route to register. There is no UI to touch. If you are editing `registry.ts` to add a
-cipher, stop.
+To add a cipher, **create one folder**. There is no route to register. There is no UI to
+touch. The one central list is `COURSE_SLUGS`. It decides which folders the site shows, not
+which folders exist. A new folder is validated and tested at once. Add its slug to
+`COURSE_SLUGS` only if the course covers it. See "Course scope" above.
 
 **The folder tree is the curriculum.** A cipher lives at `<family>/<group>/<slug>/`. The
 catalogue reads the sub-heading from the middle segment. Therefore
@@ -85,6 +102,10 @@ catalogue reads the sub-heading from the middle segment. Therefore
 `GROUPS` in `registry.ts` is an ordered list of groups with their headings. To add a cipher
 to an existing group, edit nothing. To invent a new group, add one line. That line is a
 decision about the whole catalogue, not a fact about one cipher. Therefore it lives centrally.
+
+A group can also declare a `technique`: `'substitution'` or `'transposition'`. `techniqueOf`
+reads it, and the Playground puts its headings on it. The order of `GROUPS` puts every
+substitution kind before transposition, as the lecture does.
 
 In development, and therefore in tests, the registry validates at module load. It throws with
 *all* violations at once. It checks that:
@@ -117,7 +138,7 @@ tested algorithm to save nine lines is churn. **New ciphers import from `lib/`.*
 
 Cross-cipher imports are allowed. Sometimes they are the point. Beaufort and Porta import
 `candidateKeyLengths` from `polyalphabetic/vigenere/attack`. ADFGVX imports `columnarOrder`
-from `transposition/columnar/columnar`. In both cases the import *is* the argument. If a
+from `transposition/row-transposition/columnar`. In both cases the import *is* the argument. If a
 cipher falls to the same code, the change bought no security.
 
 ### Metadata, presets and randomisation
@@ -144,8 +165,8 @@ that the badge is the most urgent thing on the page. It is not. The "How this br
 is.
 
 `CipherFacts` renders all of this metadata. `searchCiphers` matches names, family and group
-labels, key types, and `keywords`. Therefore "rotor" finds Enigma, and Enigma declares no such
-word. Every term must match. A typo returns nothing, rather than returning the wrong cipher
+labels, key types, and `keywords`. Therefore "columnar" finds Row Transposition, which has
+no such word in its name. Every term must match. A typo returns nothing, rather than returning the wrong cipher
 with confidence.
 
 **Randomisation lives in `src/ciphers/params.ts`, which is React-free.** Tests and the
@@ -172,30 +193,39 @@ teach that identification is a button. It would also be wrong often enough to ma
 Three more pages read the registry and add no field to the contract. That was the test they
 had to pass. A page that needed a cipher to declare something for it would be the wrong page.
 
-**`/timeline`** is the catalogue by date. `src/lib/chronology.ts` is React-free and tested. It
+**`/timeline`** is the catalogue by date. It is out of the nav and the command palette, because
+six ciphers make a poor timeline. The route still works. `src/lib/chronology.ts` is React-free
+and tested. It
 parses the free-text `year` into a sort key. `parseYear` negates BC. It sorts `'1500s'` from
 1500. It returns **`null` rather than a guess** for `'ancient'`. Therefore Affine sits in a
 "no date at all" section, and no century is invented for it. `ERAS` is deliberately uneven.
 Two thousand years of substitution is one heading. The years since 1970 are three headings.
 That is where the ideas are.
 
-**`/compare`** puts all thirty-two rows of metadata on one sortable, filterable table. It
+**`/compare`** puts every shown row of metadata on one sortable, filterable table. It
 exists for the questions that live only *between* ciphers. It is the reason that `security`,
 `difficulty` and `keyType` became required fields. **No column is colour-coded**, for the same
 reason that no badge is. The "Breakable here" column states whether *this app* ships an
-attack. The note under the table states plainly that several "No" rows are thoroughly broken
-in the literature, and that gap 6 alone blocks them.
+attack. The note under the table states plainly that every "No" row is thoroughly broken, and
+names the search program that the attack would need.
 
-**`/playground`** runs one message through two ciphers at once. Each side is an ordinary
-`useCipherRun`. Therefore async ciphers and thrown param errors behave exactly as they do on a
-cipher page. **Both sides encrypt.** A decrypt on one side and an encrypt on the other is two
-unrelated runs that share a text box, and the comparison it invites is false. Switching cipher
-resets the params of that side. An AES key in a Caesar shift is a confusing error, not an
-interesting one.
+**`/playground`** runs one message through every shown cipher at once, one row each. The rows
+sit under two headings from `TECHNIQUES`: Substitution (confusion) and Transposition
+(diffusion). Each row is an ordinary `useCipherRun`. Therefore async ciphers and thrown param
+errors behave exactly as they do on a cipher page.
+
+- Each row starts on the cipher's first example key, which is the textbook key.
+- The key controls sit in a collapsed `<details>`. The row shows a one-line key summary.
+- **One direction control applies to every row.** Decrypt is there so that a student can paste
+  a ciphertext and see which row reads as English. A decrypt on one row and an encrypt on
+  another is two unrelated runs that share a text box. Therefore the rows never mix.
+- A one-way module has no row, because it cannot decrypt.
+- The cipher name is a plain link to its page. The key does not travel with it. That needs
+  share-by-URL state, which is held back.
 
 `CommandPalette` (Ctrl/Cmd+K, mounted in `Layout`) reaches any page from anywhere. It matches
 through `searchCiphers`. It therefore inherits the rules of the catalogue, instead of becoming
-a second search engine to keep honest. The five non-cipher pages are a literal list inside it,
+a second search engine to keep honest. The four non-cipher pages are a literal list inside it,
 because there is no registry to read. Past a handful, that list wants the treatment the
 ciphers got.
 
@@ -232,6 +262,7 @@ true at twenty ciphers. Pretending otherwise would mean inventing differences.
 
 | Cipher | Reason |
 | --- | --- |
+| Monoalphabetic | 26! key alphabets. The real attack is frequency analysis, then a hill-climb that swaps key letters. The explainer walks through it and points to `/analyse`. |
 | Playfair | 25! key squares. The interesting part is the search, not the cipher. |
 | Four-square | Two keyed squares. The same wall, twice. |
 | Bifid, Trifid | The square *and* the period, and each hides the other. With the wrong period, a correct square scores like a random one. In practice you solve period first, with a program. |
@@ -329,9 +360,9 @@ beside every score, which was true until it was not. `AttackCandidate.score` sta
 lower-is-better across the app. A higher-is-better statistic is negated at the boundary, and
 the panel then needs to know nothing.
 
-Both transpositions use bigrams. Rail Fence tries nine rail counts. Columnar tries every
-column order up to `MAX_ATTACK_WIDTH`, which is seven, or 5040 orders. The search of Columnar
-is capped and **says so in the explainer**. A tool that returns nothing without explaining why
+Both transpositions use bigrams. Rail Fence tries nine rail counts. Row Transposition tries
+every column order up to `MAX_ATTACK_WIDTH`, which is seven, or 5040 orders. Its search is
+capped and **says so in the explainer**. A tool that returns nothing without explaining why
 teaches that the cipher resisted, when in fact the search gave up. Autokey is capped the same
 way, at `MAX_KEYWORD` = 3. That is 26³ = 17,576 trials, which is instant. Four letters is
 457,000 trials, which freezes the page.
@@ -544,16 +575,16 @@ cannot be reversed. The problem is that the output is not a message at all.
 
 ## Roadmap and scope discipline
 
-**Thirty-two entries ship, in five families.** The folder tree is the curriculum. This table is
-what is in it.
+**Thirty-three entries are in the repository, in five families. Six are shown.** The folder
+tree is the curriculum. This table is what is in it. Shown entries are in **bold**.
 
 | Family | Group | Entries |
 | --- | --- | --- |
 | Encoding | — | Morse Code |
-| Classical | Substitution | Caesar, Atbash, ROT13, Affine, Bacon |
-| | Polyalphabetic | Vigenère, Porta, Beaufort, Autokey |
-| | Transposition | Rail Fence, Columnar |
-| | Polygraphic | Playfair, Hill, Four-square |
+| Classical | Substitution | **Caesar**, **Monoalphabetic**, Atbash, ROT13, Affine, Bacon |
+| | Polygraphic | **Playfair**, Hill, Four-square |
+| | Polyalphabetic | **Vigenère**, Porta, Beaufort, Autokey |
+| | Transposition | **Rail Fence**, **Row Transposition** |
 | | Fractionation | Bifid, Trifid, Nihilist, ADFGVX, Straddling Checkerboard |
 | | Mechanical | Enigma |
 | | Perfect secrecy | One-Time Pad |
@@ -599,7 +630,14 @@ Beyond hashing, if it is ever wanted: MACs and HMAC, digital signatures (ECDSA),
 curves proper, and post-quantum. None of these are ciphers either, and all of them run into
 gap 8.
 
-**Do not add more classical ciphers.** The family has enough breadth to make every point it
+Two course ciphers came late, and each is worth knowing:
+
+| Cipher | What is worth knowing |
+| --- | --- |
+| Monoalphabetic | The key is a full 26-letter permutation, default `DKVQFIBJWPESCXHTMYAUOLRGZN` from the textbook. A bad key throws with the repeated and the missing letters. `randomKey()` shuffles with Fisher-Yates, because the per-param `randomise` can repeat letters. |
+| Row Transposition | This was Columnar, renamed to the course's name. The folder moved, and the files inside keep the name `columnar`, because that is what the algorithm does. The key is numbers (`4312567`, or spaced for ranks past nine) or a keyword. The `pad` select fills the last row with x, y, z, as the textbook does. Decrypting keeps the filler, because nothing can tell it from the message. A test reproduces `TTNAAPTMTSUOAODWCOIXKNLYPETZ`. |
+
+**Do not add more classical ciphers** unless the course needs them. The family has enough breadth to make every point it
 makes. Another would be a cryptographic graveyard rather than a curriculum.
 
 Held back, and available if wanted: a family tree, CTF challenges, an "identify this cipher"

@@ -119,7 +119,7 @@ export default function RoundTripCheck({
               <p className="text-ink">
                 <span className="font-semibold text-ink-strong">Recovered, but not identical.</span>{' '}
                 The letters are all there in order. Spacing, case or punctuation did not survive,
-                because this cipher normalises its input before it starts — which is also why real
+                because this cipher normalises its input before it starts. This is also why real
                 intercepts of these ciphers arrive as unbroken blocks of capitals.
               </p>
               <p className="mt-2 break-words font-mono text-xs text-ink-muted">

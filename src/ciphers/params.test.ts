@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canRandomise, defaultParams, randomKeyFor, randomValue } from './params';
 import type { ParamSpec } from './types';
-import { ciphers } from './registry';
+import { allCiphers as ciphers } from './registry';
 
 describe('randomValue', () => {
   it('stays inside a number param’s own range', () => {

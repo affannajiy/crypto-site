@@ -1,5 +1,9 @@
 /**
- * Columnar transposition.
+ * Row transposition, also called columnar transposition.
+ *
+ * The file keeps the name "columnar" because that is what the algorithm does:
+ * the message goes in by rows and comes out by columns. The textbook names it by
+ * the first half and most histories by the second.
  *
  * Rail Fence moves characters around on a fixed zigzag, and its only secret is
  * how many rails — a key space small enough that the Attack tab there tries every
@@ -11,11 +15,11 @@
  * counts, and the jump from "try them all instantly" to "try them all, but you
  * will feel it" is the point of putting both ciphers in the app.
  *
- * The last row is usually incomplete, and this implementation leaves it that way
- * rather than padding to a rectangle. That is the historical version — the ragged
- * bottom row is what makes the columns different lengths, and getting the lengths
- * right is most of the work of decrypting. Padding it away would make the code
- * shorter and the cipher a lie.
+ * The last row is usually incomplete. The textbook fills it with x, y, z so the
+ * grid is a rectangle, and `pad` does the same. Without `pad` the last row stays
+ * ragged, which is the harder version: the ragged bottom row makes the columns
+ * different lengths, and getting the lengths right is most of the work of
+ * decrypting. Both are here because each teaches something.
  *
  * Like Rail Fence, every character takes part, spaces included, so the cipher is
  * exactly length-preserving. See the note on `columnLengths`.
@@ -30,18 +34,54 @@ export const MAX_COLUMNS = 12;
 export type Direction = 'encrypt' | 'decrypt';
 
 /**
- * Turns a keyword into the order its columns are read in.
+ * True for a key written as numbers, the way the textbook writes it: `4312567`,
+ * or `4 3 1 2 5 6 7`. Anything with a letter in it is a keyword.
+ */
+export function isNumericKey(key: string): boolean {
+  return /\d/.test(key) && /^[\d\s,-]+$/.test(key.trim());
+}
+
+/**
+ * The rank of each column in a numeric key, as written.
  *
- * The rule is alphabetical rank: with LEMON, the E is read first, then the L,
- * then the M, then the N, then the O. Repeated letters break the tie by position,
- * left to right, which is the standard convention — otherwise BALLOON would be
+ * With no separator, each digit is one column, so `4312567` is seven columns.
+ * With spaces or commas, each number is one column, so `3 1 10 2 ...` can reach
+ * past nine. The numbers must be 1 to n, each once, or two columns would claim the
+ * same turn.
+ */
+function numericRanks(key: string): number[] {
+  const trimmed = key.trim();
+  const tokens = /[\s,-]/.test(trimmed) ? trimmed.split(/[\s,-]+/).filter(Boolean) : trimmed.split('');
+  const ranks = tokens.map(Number);
+  const sorted = [...ranks].sort((a, b) => a - b);
+  if (!sorted.every((n, i) => n === i + 1)) {
+    throw new Error(
+      `A numeric key must use each number from 1 to ${ranks.length} exactly once. '${trimmed}' does not.`,
+    );
+  }
+  return ranks;
+}
+
+/**
+ * Turns a key into the order its columns are read in.
+ *
+ * A numeric key says it outright: the column headed 1 is read first. A keyword
+ * says it by alphabetical rank: with LEMON, the E is read first, then the L, then
+ * the M, then the N, then the O. Repeated letters break the tie by position, left
+ * to right, which is the standard convention — otherwise BALLOON would be
  * ambiguous and two people with the same key would disagree.
  *
  * Returns grid column indices in reading order: `order[0]` is the column read
  * first.
  */
-export function keyOrder(keyword: string): number[] {
-  const letters = keyword.replace(/[^A-Za-z]/g, '').toUpperCase().split('');
+export function keyOrder(key: string): number[] {
+  if (isNumericKey(key)) {
+    return numericRanks(key)
+      .map((rank, index) => ({ rank, index }))
+      .sort((a, b) => a.rank - b.rank)
+      .map((entry) => entry.index);
+  }
+  const letters = key.replace(/[^A-Za-z]/g, '').toUpperCase().split('');
   return letters
     .map((letter, index) => ({ letter, index }))
     .sort((a, b) => (a.letter === b.letter ? a.index - b.index : a.letter < b.letter ? -1 : 1))
@@ -49,13 +89,42 @@ export function keyOrder(keyword: string): number[] {
 }
 
 /** The rank shown above each column: 1 for the column read first. */
-export function keyRanks(keyword: string): number[] {
-  const order = keyOrder(keyword);
+export function keyRanks(key: string): number[] {
+  const order = keyOrder(key);
   const ranks = new Array<number>(order.length).fill(0);
   order.forEach((column, position) => {
     ranks[column] = position + 1;
   });
   return ranks;
+}
+
+/** What heads each column: the keyword's letter, or the number itself. */
+export function keyLabels(key: string): string[] {
+  if (isNumericKey(key)) return keyRanks(key).map(String);
+  return key.replace(/[^A-Za-z]/g, '').toUpperCase().split('');
+}
+
+/**
+ * The filler written into the empty cells of the last row: x, y, z, then round
+ * the alphabet. The textbook example pads with exactly these.
+ */
+const FILLER = 'xyzabcdefghijklmnopqrstuvw';
+
+/**
+ * The message with the last row filled out, so the grid is a full rectangle.
+ *
+ * The filler is lowercase unless every letter of the message is uppercase, so it
+ * matches what it sits next to. Decrypting cannot tell filler from message, so it
+ * comes back at the end of the plaintext. The reader is expected to see it and
+ * drop it, as a clerk would.
+ */
+export function padToRectangle(text: string, columns: number): string {
+  const short = (columns - (text.length % columns)) % columns;
+  if (short === 0) return text;
+  const letters = text.replace(/[^A-Za-z]/g, '');
+  const upper = letters.length > 0 && letters === letters.toUpperCase();
+  const filler = FILLER.slice(0, short);
+  return text + (upper ? filler.toUpperCase() : filler);
 }
 
 /**
@@ -106,20 +175,32 @@ export function invert(order: number[]): number[] {
   return out;
 }
 
-/** The cipher, untraced. Used by the benchmark. */
-export function columnar(text: string, keyword: string, direction: Direction = 'encrypt'): string {
+/**
+ * The cipher, untraced. Used by the benchmark and the attack.
+ *
+ * `pad` fills the last row before encrypting. It changes nothing when
+ * decrypting: a padded ciphertext is a full rectangle, and the inverse of a full
+ * rectangle is the same with or without it.
+ */
+export function columnar(
+  text: string,
+  keyword: string,
+  direction: Direction = 'encrypt',
+  pad = false,
+): string {
   const width = keyOrder(keyword).length;
   if (width < MIN_COLUMNS) {
     throw new Error(
-      `The keyword needs at least ${MIN_COLUMNS} letters — one column is not a transposition, it is a copy.`,
+      `The key needs at least ${MIN_COLUMNS} letters or numbers — one column is not a transposition, it is a copy.`,
     );
   }
   if (width > MAX_COLUMNS) {
     throw new Error(
-      `The keyword has ${width} letters, and this page stops at ${MAX_COLUMNS}. The cipher works with more; the grid stops being readable.`,
+      `The key has ${width} columns, and this page stops at ${MAX_COLUMNS}. The cipher works with more; the grid stops being readable.`,
     );
   }
 
+  if (direction === 'encrypt' && pad) text = padToRectangle(text, width);
   const order = columnarOrder(text.length, keyword);
   const chars = text.split('');
 
@@ -159,14 +240,19 @@ export function describeChar(char: string): string {
  * cannot describe both.
  */
 export function columnarTrace(
-  text: string,
+  original: string,
   keyword: string,
   direction: Direction = 'encrypt',
+  pad = false,
 ): TraceResult {
-  const output = columnar(text, keyword, direction);
+  const output = columnar(original, keyword, direction, pad);
   const columns = keyOrder(keyword).length;
   const ranks = keyRanks(keyword);
-  const letters = keyword.replace(/[^A-Za-z]/g, '').toUpperCase();
+  const labels = keyLabels(keyword);
+
+  // From here on the grid is a full rectangle when padding is on. Cells past the
+  // end of `original` hold filler, which has no place in the input pane.
+  const text = direction === 'encrypt' && pad ? padToRectangle(original, columns) : original;
 
   // Encrypting, the grid holds the message and the output is the readout.
   // Decrypting, the grid holds the *answer*, so the trace is written from the
@@ -186,8 +272,16 @@ export function columnarTrace(
     const outputIndex = direction === 'encrypt' ? position : cell;
 
     const rank = ranks[column] ?? 0;
-    const keyLetter = letters.charAt(column);
+    const keyLetter = labels[column] ?? '';
     const height = lengths[column] ?? 0;
+    const filler = direction === 'encrypt' && cell >= original.length;
+    const why = isNumericKey(keyword)
+      ? `Column ${column + 1} is headed ${keyLetter}, so it is ${
+          direction === 'encrypt' ? 'read out' : 'filled back in'
+        } ${ordinal(rank)}.`
+      : `Column ${column + 1} is headed ${keyLetter}, which is ${ordinal(rank)} in alphabetical order, so it is ${
+          direction === 'encrypt' ? 'read out' : 'filled back in'
+        } ${ordinal(rank)}.`;
 
     steps.push({
       index: position,
@@ -195,18 +289,22 @@ export function columnarTrace(
         direction === 'encrypt'
           ? `Read column ${column + 1} (${keyLetter}), row ${row + 1}`
           : `Refill column ${column + 1} (${keyLetter}), row ${row + 1}`,
-      detail: `Column ${column + 1} is headed ${keyLetter}, which is ${ordinal(rank)} in alphabetical order, so it is ${
-        direction === 'encrypt' ? 'read out' : 'filled back in'
-      } ${ordinal(rank)}. This column holds ${height} character${height === 1 ? '' : 's'}. ${describeChar(
+      detail: `${why} This column holds ${height} character${height === 1 ? '' : 's'}. ${describeChar(
         char,
-      )} sits at row ${row + 1}, position ${cell + 1} of the message, and lands at position ${
+      )} sits at row ${row + 1}, position ${cell + 1} of the ${filler ? 'padded grid' : 'message'}, and lands at position ${
         outputIndex + 1
-      } of the ${direction === 'encrypt' ? 'ciphertext' : 'message'}. The letter itself is unchanged — a transposition never substitutes.`,
+      } of the ${direction === 'encrypt' ? 'ciphertext' : 'message'}. ${
+        filler
+          ? 'It is filler, added only to square off the last row.'
+          : 'The letter itself is unchanged — a transposition never substitutes.'
+      }`,
       input: char,
       output: char,
-      highlight: { start: inputIndex, end: inputIndex + 1 },
+      // Filler was never in the message box, so there is nothing there to light.
+      ...(filler ? {} : { highlight: { start: inputIndex, end: inputIndex + 1 } }),
       outputHighlight: { start: outputIndex, end: outputIndex + 1 },
       data: {
+        filler,
         char,
         row,
         column,

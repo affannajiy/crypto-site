@@ -29,14 +29,15 @@ export default function Timeline() {
         </h1>
         <p className="cl-prose text-ink-muted">
           The same entries as the catalogue, sorted by when they appeared rather than by what
-          kind of thing they are. The dates are as precise as the history is — a decade or a
-          tilde means nobody knows better, and the page says so rather than inventing a year.
+          kind of thing they are. The dates are only as precise as the history is, whereby a
+          decade or a tilde means nobody knows better, and the page says so rather than
+          inventing a year.
         </p>
         <p className="cl-prose text-ink-muted">
           The shape worth noticing: almost nothing changes for two thousand years, then
           everything changes in fifty. Every entry above 1970 was published in the open, and
-          that is the actual break in the story — not a new mathematics, a new willingness to
-          print it.
+          that is the actual break in the story. It was not a new mathematics, but a new
+          willingness to print it.
         </p>
       </header>
 

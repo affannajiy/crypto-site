@@ -95,8 +95,12 @@ export default function Home() {
           See how ciphers actually work
         </h1>
         <p className="cl-prose text-ink-muted">
-          Encrypt something, then read every step the algorithm took to get there. Where a
-          cipher can be broken, break it. Where it can be drawn, watch it move.
+          CryptoLab covers the classical ciphers in two halves. Firstly, substitution replaces
+          each letter with another, which hides what the letters are. This property is called
+          confusion. Secondly, transposition keeps the letters but moves them, which hides where
+          they are. This property is called diffusion. Each page encrypts a message and then
+          lists every step the algorithm took to get there. Where a cipher can be broken, the
+          page breaks it, and where it can be drawn, the page shows it move.
         </p>
       </header>
 
@@ -110,7 +114,7 @@ export default function Home() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="caesar, rotor, public key, transposition…  (press /, or Ctrl-K anywhere)"
+          placeholder="caesar, columnar, polyalphabetic, transposition…  (press /, or Ctrl-K anywhere)"
           className="cl-field w-full"
           autoComplete="off"
         />
@@ -126,9 +130,10 @@ export default function Home() {
       {results !== null ? (
         results.length === 0 ? (
           <p className="cl-prose text-ink-muted">
-            Nothing matches every word of that. Search matches names, families, key types and
-            related terms — “rotor” finds Enigma, “public key” finds RSA — but it does not guess
-            at spellings, so a near miss returns nothing rather than the wrong cipher.
+            Nothing matches every word of that search. The search reads names, families, key
+            types and related terms, whereby “columnar” finds Row Transposition and “shift” finds
+            Caesar. However, it does not guess at spellings, so a near miss returns nothing rather
+            than the wrong cipher.
           </p>
         ) : (
           <CipherGrid ciphers={results} />
@@ -164,10 +169,9 @@ export default function Home() {
       ))}
 
       <p className="text-sm text-ink-subtle">
-        {total} {total === 1 ? 'entry' : 'entries'}, oldest ideas first. The same set reads
-        differently by <Link to="/timeline" className="underline underline-offset-4 hover:text-ink">date</Link>,
+        {total} {total === 1 ? 'entry' : 'entries'}. The same set reads differently
         as <Link to="/compare" className="underline underline-offset-4 hover:text-ink">one table</Link>,
-        or <Link to="/playground" className="underline underline-offset-4 hover:text-ink">two at a time</Link>.
+        or <Link to="/playground" className="underline underline-offset-4 hover:text-ink">all at once on one message</Link>.
       </p>
         </>
       )}

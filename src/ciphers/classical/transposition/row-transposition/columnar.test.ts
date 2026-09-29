@@ -5,12 +5,14 @@ import {
   columnarOrder,
   columnarTrace,
   invert,
+  keyLabels,
   keyOrder,
   keyRanks,
+  padToRectangle,
 } from './columnar';
 import { MAX_ATTACK_WIDTH, breakColumnar, keywordForOrder, permutations } from './attack';
 import { chiSquaredEnglish } from '../../../../lib/frequency';
-import columnarCipher from './index';
+import rowTranspositionCipher from './index';
 
 describe('keyOrder', () => {
   it('reads the columns in alphabetical order of the keyword', () => {
@@ -27,6 +29,39 @@ describe('keyOrder', () => {
 
   it('ignores anything that is not a letter', () => {
     expect(keyOrder('k-e y!')).toEqual([1, 0, 2]);
+  });
+
+  it('reads a numeric key as the order itself', () => {
+    // 4312567: the column headed 1 (index 2) is read first.
+    expect(keyOrder('4312567')).toEqual([2, 3, 1, 0, 4, 5, 6]);
+    expect(keyOrder('4 3 1 2 5 6 7')).toEqual(keyOrder('4312567'));
+  });
+
+  it('takes numbers past nine when they are separated', () => {
+    expect(keyOrder('2 10 1 3 4 5 6 7 8 9')[0]).toBe(2);
+    expect(keyOrder('2 10 1 3 4 5 6 7 8 9')[9]).toBe(1);
+  });
+
+  it('refuses a numeric key that repeats or skips a number', () => {
+    expect(() => keyOrder('4312577')).toThrow(/each number from 1 to 7 exactly once/);
+  });
+});
+
+describe('keyLabels', () => {
+  it('heads each column with its number or its letter', () => {
+    expect(keyLabels('4312567')).toEqual(['4', '3', '1', '2', '5', '6', '7']);
+    expect(keyLabels('cab')).toEqual(['C', 'A', 'B']);
+  });
+});
+
+describe('padToRectangle', () => {
+  it('fills the last row with x, y, z, matching the case of the message', () => {
+    expect(padToRectangle('attackpostponeduntiltwoam', 7)).toBe('attackpostponeduntiltwoamxyz');
+    expect(padToRectangle('ATTACK', 4)).toBe('ATTACKXY');
+  });
+
+  it('adds nothing to a full rectangle', () => {
+    expect(padToRectangle('abcdef', 3)).toBe('abcdef');
   });
 });
 
@@ -70,7 +105,7 @@ describe('columnar', () => {
     }
   });
 
-  it('never changes which letters are present — it is a transposition', () => {
+  it('never changes which letters are present â€” it is a transposition', () => {
     const text = 'attack at dawn';
     expect(columnar(text, 'KEYWORD').split('').sort().join('')).toBe(
       text.split('').sort().join(''),
@@ -170,7 +205,7 @@ describe('breakColumnar', () => {
     // reproduces the permutation rather than the sender's word.
     const plain = 'the general will attack the northern bridge at dawn tomorrow';
     const best = breakColumnar(columnar(plain, 'ZEBRA'))[0];
-    const keyword = String(best?.key['keyword'] ?? '');
+    const keyword = String(best?.key['key'] ?? '');
     expect(keyword).not.toBe('ZEBRA');
     expect(columnar(columnar(plain, 'ZEBRA'), keyword, 'decrypt')).toBe(plain);
   });
@@ -184,7 +219,7 @@ describe('breakColumnar', () => {
 
   it('cannot be ranked by chi-squared, which is why it is not', () => {
     // Every candidate is a rearrangement of the same letters, so the letter
-    // counts — and therefore chi-squared — are identical to the last decimal.
+    // counts â€” and therefore chi-squared â€” are identical to the last decimal.
     const candidates = breakColumnar(columnar('the quick brown fox jumps over it', 'CAB'));
     const scores = candidates.map((c) => chiSquaredEnglish(c.plaintext).toFixed(10));
     expect(new Set(scores).size).toBe(1);
@@ -206,33 +241,57 @@ describe('breakColumnar', () => {
 
 describe('the module', () => {
   it('is wired to the algorithm', () => {
-    const result = columnarCipher.encrypt('ABCDEF', { keyword: 'CAB' });
+    const result = rowTranspositionCipher.encrypt('ABCDEF', { key: 'CAB' });
     expect('output' in result && result.output).toBe('BECFAD');
   });
 
-  it('round-trips through the module', () => {
-    const encrypted = columnarCipher.encrypt('Attack at dawn!', { keyword: 'KEYWORD' });
+  it('round-trips through the module with a ragged last row', () => {
+    const params = { key: 'KEYWORD', pad: 'ragged' };
+    const encrypted = rowTranspositionCipher.encrypt('Attack at dawn!', params);
     const output = 'output' in encrypted ? encrypted.output : '';
     // `decrypt` is optional on the contract now that a hash can declare itself
     // one-way, so a cipher's own test says out loud that it has one.
-    const reverse = columnarCipher.decrypt;
+    const reverse = rowTranspositionCipher.decrypt;
     if (reverse === undefined) throw new Error('This cipher must be reversible.');
-    const decrypted = reverse(output, { keyword: 'KEYWORD' });
+    const decrypted = reverse(output, params);
     expect('output' in decrypted && decrypted.output).toBe('Attack at dawn!');
   });
 
+  it('pads by default, and the filler comes back at the end', () => {
+    const encrypted = rowTranspositionCipher.encrypt('attack at dawn!', { key: '4312567' });
+    const output = 'output' in encrypted ? encrypted.output : '';
+    expect(output).toHaveLength(21);
+    const decrypted = rowTranspositionCipher.decrypt?.(output, { key: '4312567' });
+    expect(decrypted && 'output' in decrypted && decrypted.output).toBe('attack at dawn!xyzabc');
+  });
+
+  it('reproduces the textbook example exactly', () => {
+    const result = rowTranspositionCipher.encrypt('attackpostponeduntiltwoam', {
+      key: '4312567',
+      pad: 'pad',
+    });
+    expect('output' in result && result.output.toUpperCase()).toBe('TTNAAPTMTSUOAODWCOIXKNLYPETZ');
+  });
+
+  it('marks filler steps and lights nothing in the message box for them', () => {
+    const { steps } = columnarTrace('abcde', '312', 'encrypt', true);
+    const filler = steps.filter((s) => s.data?.['filler'] === true);
+    expect(filler.map((s) => s.input)).toEqual(['x']);
+    expect(filler[0]?.highlight).toBeUndefined();
+  });
+
   it('names the statistic its attack actually uses', () => {
-    expect(columnarCipher.attackScoreLabel).toBe('bigram fit');
+    expect(rowTranspositionCipher.attackScoreLabel).toBe('bigram fit');
   });
 
   it('implements every tier it claims', () => {
-    expect(columnarCipher.tiers).toContain('attack');
-    expect(columnarCipher.attack).toBeDefined();
-    expect(columnarCipher.visualize).toBeDefined();
+    expect(rowTranspositionCipher.tiers).toContain('attack');
+    expect(rowTranspositionCipher.attack).toBeDefined();
+    expect(rowTranspositionCipher.visualize).toBeDefined();
   });
 
   it('tells the reader how it breaks, including the attack this page cannot run', () => {
-    expect(columnarCipher.explainer.toLowerCase()).toContain('how this breaks');
-    expect(columnarCipher.explainer).toContain('multiple anagramming');
+    expect(rowTranspositionCipher.explainer.toLowerCase()).toContain('how this breaks');
+    expect(rowTranspositionCipher.explainer).toContain('multiple anagramming');
   });
 });

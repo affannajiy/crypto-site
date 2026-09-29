@@ -389,3 +389,11 @@ describe('the module', () => {
     expect(Object.keys(candidate?.key ?? {})).toEqual(names);
   });
 });
+
+describe('the textbook example', () => {
+  it('encrypts "we are discovered save yourself" under DECEPTIVE', () => {
+    expect(vigenere('wearediscoveredsaveyourself', 'DECEPTIVE').toUpperCase()).toBe(
+      'ZICVTWQNGRZGVTWAVZHCQYGLMGJ',
+    );
+  });
+});

@@ -104,10 +104,10 @@ export default function Compare() {
           Every entry, side by side
         </h1>
         <p className="cl-prose text-ink-muted">
-          The catalogue tells you about one cipher at a time. This is the same information across
-          all of them, which is the only way to answer the questions that live between ciphers:
-          what still holds up, what has a key at all, and which of these you can break here in the
-          browser.
+          The catalogue describes one cipher at a time. This table puts the same information
+          across all of them, which is the only way to answer the questions that live between
+          ciphers: what still holds up, what has a key at all, and which of them can be broken
+          here in the browser.
         </p>
       </header>
 
@@ -230,12 +230,12 @@ export default function Compare() {
       </div>
 
       <p className="cl-prose text-sm text-ink-muted">
-        <strong className="font-semibold text-ink">Breakable here</strong> means this app ships a
-        working attack, not that the cipher is unbroken otherwise. Several of the entries marked
-        &ldquo;No&rdquo; are thoroughly broken in the literature — Hill and Enigma both fall to a
-        known crib, MD5 and SHA-1 both fall to collisions — but the attack needs an input this
-        app&rsquo;s attack signature cannot pass it. Every one of those pages says which, and why,
-        in its explainer.
+        <strong className="font-semibold text-ink">Breakable here</strong> means that this app
+        ships a working attack. It does not mean that the other ciphers are unbroken. In fact,
+        every entry marked &ldquo;No&rdquo; is thoroughly broken. To illustrate, Monoalphabetic
+        substitution and Playfair both fall to frequency analysis, but the practical attack is a
+        search program that swaps key letters until the text looks like English, as opposed to a
+        button. Each of those pages states this, and the reason, in its explainer.
       </p>
     </div>
   );

@@ -15,7 +15,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Params, Step } from '../../../types';
-import { columnLengths, keyRanks } from './columnar';
+import { columnLengths, isNumericKey, keyLabels, keyRanks } from './columnar';
 
 const PLAY_INTERVAL_MS = 420;
 
@@ -114,9 +114,16 @@ export default function ColumnarGrid({ steps, params }: { steps: Step[]; params:
     );
   }
 
-  const keyword = String(params['keyword'] ?? '');
-  const ranks = keyRanks(keyword);
-  const letters = keyword.replace(/[^A-Za-z]/g, '').toUpperCase().split('');
+  const keyword = String(params['key'] ?? '');
+  let ranks: number[];
+  let letters: string[];
+  try {
+    ranks = keyRanks(keyword);
+    letters = keyLabels(keyword);
+  } catch (error) {
+    return <p className="cl-prose text-sm text-ink-muted">{(error as Error).message}</p>;
+  }
+  const hasFiller = steps.some((step) => step.data?.['filler'] === true);
   const columns = cell?.columns ?? Math.max(1, letters.length);
   const rows = Math.ceil(length / columns);
   const heights = columnLengths(length, columns);
@@ -150,6 +157,12 @@ export default function ColumnarGrid({ steps, params }: { steps: Step[]; params:
               (the last row is short, so the columns are not all the same height)
             </span>
           )}
+          {hasFiller && (
+            <span className="font-normal text-ink-subtle">
+              {' '}
+              (the end of the last row is filler, added to make a full rectangle)
+            </span>
+          )}
         </p>
         <table className="mt-1 border-collapse font-mono text-sm">
           <caption className="sr-only">
@@ -173,9 +186,12 @@ export default function ColumnarGrid({ steps, params }: { steps: Step[]; params:
                     ].join(' ')}
                   >
                     <span className="block font-bold">{letter}</span>
-                    <span className="block text-[0.7rem] font-normal text-ink-subtle">
-                      <span className="sr-only">read </span>#{ranks[column] ?? '?'}
-                    </span>
+                    {/* A numeric key already is the rank, so saying it twice is noise. */}
+                    {!isNumericKey(keyword) && (
+                      <span className="block text-[0.7rem] font-normal text-ink-subtle">
+                        <span className="sr-only">read </span>#{ranks[column] ?? '?'}
+                      </span>
+                    )}
                   </th>
                 );
               })}

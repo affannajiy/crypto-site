@@ -30,7 +30,7 @@
  */
 import type { Step, TraceResult } from '../../../types';
 import { type Square, buildSquare, locate } from '../../../../lib/polybius';
-import { columnarOrder, invert } from '../../transposition/columnar/columnar';
+import { columnarOrder, invert } from '../../transposition/row-transposition/columnar';
 
 export type Direction = 'encrypt' | 'decrypt';
 

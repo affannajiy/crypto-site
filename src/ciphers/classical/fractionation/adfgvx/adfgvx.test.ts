@@ -12,7 +12,7 @@ import {
   transpose,
   untranspose,
 } from './adfgvx';
-import { columnar } from '../../transposition/columnar/columnar';
+import { columnar } from '../../transposition/row-transposition/columnar';
 import { chiSquaredEnglish } from '../../../../lib/frequency';
 import adfgvxCipher from './index';
 

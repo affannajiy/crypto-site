@@ -5,7 +5,6 @@ import CommandPalette from './CommandPalette';
 
 const NAV = [
   { to: '/', label: 'Ciphers' },
-  { to: '/timeline', label: 'Timeline' },
   { to: '/compare', label: 'Compare' },
   { to: '/playground', label: 'Playground' },
   { to: '/analyse', label: 'Analyse' },
@@ -36,9 +35,9 @@ export default function Layout() {
           <span className="hidden text-sm text-ink-subtle sm:inline">
             see how ciphers actually work
           </span>
-          {/* The nav wraps rather than collapsing into a menu button: five short
+          {/* The nav wraps rather than collapsing into a menu button: four short
               links fit on two lines at 320px, and a disclosure widget would hide
-              four pages behind a tap to save one. */}
+              three pages behind a tap to save one. */}
           <nav aria-label="Sections" className="ml-auto flex flex-wrap justify-end gap-x-4">
             {NAV.map((item) => (
               <NavLink

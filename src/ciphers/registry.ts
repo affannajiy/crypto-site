@@ -82,6 +82,25 @@ const DIFFICULTY_VALUES = Object.keys(DIFFICULTY) as Difficulty[];
 const FAMILY_ORDER: readonly CipherModule['family'][] = FAMILIES.map((f) => f.id);
 
 /**
+ * The two things a classical cipher can do to a letter, in the order the course
+ * teaches them. Shannon's names for what each one hides are in the headings.
+ */
+export type Technique = 'substitution' | 'transposition';
+
+export const TECHNIQUES: readonly { id: Technique; label: string; description: string }[] = [
+  {
+    id: 'substitution',
+    label: 'Substitution (confusion)',
+    description: 'Each letter is replaced by another. What the letters are is hidden; where they are is not.',
+  },
+  {
+    id: 'transposition',
+    label: 'Transposition (diffusion)',
+    description: 'The letters stay the same and change places. Where they are is hidden; what they are is not.',
+  },
+];
+
+/**
  * Sub-headings inside a family, in learning-path order.
  *
  * A cipher's group is its **parent folder** — `classical/substitution/caesar`
@@ -91,11 +110,17 @@ const FAMILY_ORDER: readonly CipherModule['family'][] = FAMILIES.map((f) => f.id
  * one cipher, so it lives here. Adding a cipher to an existing group needs no
  * edit; inventing a new group costs one line, and an unlisted group sorts last.
  */
-export const GROUPS: readonly { id: string; label: string; description: string }[] = [
-  { id: 'substitution', label: 'Substitution', description: 'One letter stands for another. The whole family falls to counting.' },
-  { id: 'polyalphabetic', label: 'Polyalphabetic', description: 'Several substitution alphabets in rotation, chosen by a keyword.' },
-  { id: 'transposition', label: 'Transposition', description: 'The letters are the same. Only the order changed.' },
-  { id: 'polygraphic', label: 'Polygraphic', description: 'Whole blocks of letters encrypted at once, not one at a time.' },
+export const GROUPS: readonly {
+  id: string;
+  label: string;
+  description: string;
+  /** Which of the two classical techniques the group uses, where it is only one. */
+  technique?: Technique;
+}[] = [
+  { id: 'substitution', label: 'Substitution', description: 'One letter stands for another. The whole family falls to counting.', technique: 'substitution' },
+  { id: 'polygraphic', label: 'Polygraphic', description: 'Whole blocks of letters encrypted at once, not one at a time.', technique: 'substitution' },
+  { id: 'polyalphabetic', label: 'Polyalphabetic', description: 'Several substitution alphabets in rotation, chosen by a keyword.', technique: 'substitution' },
+  { id: 'transposition', label: 'Transposition', description: 'The letters are the same. Only the order changed.', technique: 'transposition' },
   { id: 'fractionation', label: 'Fractionation', description: 'Split each letter into pieces, then scatter the pieces. Much harder to unpick.' },
   { id: 'mechanical', label: 'Mechanical', description: 'A machine, not a rule. The key is a physical state.' },
   { id: 'perfect-secrecy', label: 'Perfect secrecy', description: 'Provably unbreakable, and almost unusable. Both facts matter.' },
@@ -286,8 +311,26 @@ function rankOf(cipher: CipherModule): number {
   return at === -1 ? GROUP_ORDER.length : at;
 }
 
-/** Every registered cipher, ordered by family, then learning path, then name. */
-export const ciphers: readonly CipherModule[] = entries
+/**
+ * The ciphers the site shows: the ones the course covers.
+ *
+ * This is the one central list in the registry, and it is not a way to add a
+ * cipher. Adding one is still one folder. This list decides which folders people
+ * see, which is a decision about the whole site rather than a fact about any one
+ * cipher, like `GROUPS`. Every other folder stays on disk, is validated, and is
+ * tested, so bringing one back costs one line here.
+ */
+export const COURSE_SLUGS: readonly string[] = [
+  'caesar',
+  'monoalphabetic',
+  'playfair',
+  'vigenere',
+  'rail-fence',
+  'row-transposition',
+];
+
+/** Every registered cipher, shown or not, ordered by family, then learning path, then name. */
+export const allCiphers: readonly CipherModule[] = entries
   .map((e) => e.cipher)
   .sort(
     (a, b) =>
@@ -295,6 +338,22 @@ export const ciphers: readonly CipherModule[] = entries
       rankOf(a) - rankOf(b) ||
       a.name.localeCompare(b.name),
   );
+
+if (import.meta.env.DEV) {
+  const known = new Set(allCiphers.map((c) => c.slug));
+  const unknown = COURSE_SLUGS.filter((slug) => !known.has(slug));
+  if (unknown.length > 0) {
+    throw new Error(`COURSE_SLUGS names ciphers that do not exist: ${unknown.join(', ')}.`);
+  }
+}
+
+/**
+ * The ciphers the site shows. Everything in the UI reads this, never
+ * `allCiphers`, so a hidden cipher has no page, no search hit and no row.
+ */
+export const ciphers: readonly CipherModule[] = allCiphers.filter((c) =>
+  COURSE_SLUGS.includes(c.slug),
+);
 
 const bySlug = new Map(ciphers.map((c) => [c.slug, c]));
 
@@ -311,6 +370,12 @@ export function getCipher(slug: string | undefined): CipherModule | undefined {
 export function groupLabelOf(slug: string): string | undefined {
   const id = groupOf.get(slug);
   return id === undefined ? undefined : GROUPS.find((g) => g.id === id)?.label;
+}
+
+/** The technique a cipher uses, read from its folder's group. Undefined when it mixes both. */
+export function techniqueOf(slug: string): Technique | undefined {
+  const id = groupOf.get(slug);
+  return id === undefined ? undefined : GROUPS.find((g) => g.id === id)?.technique;
 }
 
 export interface CatalogueGroup {

@@ -9,9 +9,9 @@
  * It is not dismissible, and it should not become dismissible.
  */
 export const SAFETY_NOTICE =
-  'This is a learning tool. It runs entirely in your browser and nothing you type is ' +
-  'sent anywhere — but it has not been audited, and no code you can read in a browser ' +
-  'can keep a secret. Never use this to protect anything real.';
+  'This is a learning tool. It runs entirely in the browser, and nothing typed here is ' +
+  'sent anywhere. However, it has not been audited, and no code that a browser can read ' +
+  'can keep a secret. Therefore, it must never be used to protect anything real.';
 
 export default function SafetyNotice() {
   return (

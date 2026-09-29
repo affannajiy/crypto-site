@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import type { Params, Step } from '../../../types';
 import { LABELS, SIZE, buildGrid } from './adfgvx';
-import { columnarOrder, keyRanks } from '../../transposition/columnar/columnar';
+import { columnarOrder, keyRanks } from '../../transposition/row-transposition/columnar';
 
 function readStage(steps: Step[], stage: string): Step | undefined {
   return steps.find((s) => s.data?.['stage'] === stage);

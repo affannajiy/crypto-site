@@ -326,3 +326,9 @@ describe('the module', () => {
     expect(Object.keys(candidate?.key ?? {})).toEqual(names);
   });
 });
+
+describe('the textbook example', () => {
+  it('writes "meet me after the toga party" at depth 2', () => {
+    expect(railFence('meetmeafterthetogaparty', 2).toUpperCase()).toBe('MEMATRHTGPRYETEFETEOAAT');
+  });
+});

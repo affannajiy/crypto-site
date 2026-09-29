@@ -1,5 +1,5 @@
 /**
- * Breaking columnar transposition.
+ * Breaking row (columnar) transposition.
  *
  * Rail Fence has nine keys and this app tries all nine. Columnar has a *factorial*
  * key space — one order for every arrangement of the columns — and that changes
@@ -105,7 +105,7 @@ export function breakColumnar(ciphertext: string): AttackCandidate[] {
       seen.add(plaintext);
 
       candidates.push({
-        key: { keyword },
+        key: { key: keyword },
         plaintext,
         score: -bigramScore(plaintext),
         label: `${width} columns, order ${order.map((c) => c + 1).join('-')}`,

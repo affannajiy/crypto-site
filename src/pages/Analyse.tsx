@@ -95,8 +95,8 @@ export default function Analyse() {
         </h1>
         <p className="cl-prose text-ink-muted">
           Paste a ciphertext and count it. Every Attack tab on this site already knows which cipher
-          it is breaking; this page is the step before that, where all you have is the message.
-          Nothing is decrypted here — these are measurements, and what they suggest.
+          it is breaking. This page is the step before that, whereby the message is all there is.
+          Nothing is decrypted here, as these are measurements and what they suggest.
         </p>
       </header>
 
@@ -141,7 +141,7 @@ export default function Analyse() {
         <p className="cl-prose mt-4 border-t border-line pt-3 text-sm text-ink-muted">
           These are suggestions, not an identification. A short polyalphabetic sample and a long
           monoalphabetic one can measure the same, and no number here separates two ciphers that
-          have the same shape — that is what trying one on its own page is for.
+          have the same shape. That is what trying each one on its own page is for.
         </p>
       </section>
 
@@ -167,8 +167,9 @@ export default function Analyse() {
         </div>
         <p className="cl-prose mt-3 text-sm text-ink-muted">
           The chance that two letters picked at random from this text are the same letter. It
-          survives substitution — renaming every letter does not change how often letters repeat —
-          so it separates one-alphabet ciphers from many-alphabet ones without decrypting anything.
+          survives substitution, since renaming every letter does not change how often letters
+          repeat. As a result, it separates one-alphabet ciphers from many-alphabet ones without
+          decrypting anything.
         </p>
       </section>
 

@@ -105,7 +105,7 @@ export function observe(text: string): Observation[] {
     const digits = (text.match(/\d/g) ?? []).length;
     if (digits > 0) {
       notes.push({
-        claim: 'Digits, not letters — a fractionating cipher or a code.',
+        claim: 'Digits, not letters. This suggests a fractionating cipher or a code.',
         evidence: `${digits} digits and no letters. Nihilist and the Straddling Checkerboard both look like this.`,
       });
     }
@@ -129,7 +129,7 @@ export function observe(text: string): Observation[] {
   } else if (ratio > 0.85) {
     notes.push({
       claim: 'One alphabet: a substitution, or a transposition.',
-      evidence: `Index of coincidence ${ic.toFixed(4)}, against ${ENGLISH_IOC} for English. Letters repeat as often as they do in English, so each plaintext letter still maps to one ciphertext letter — or none of them were replaced at all.`,
+      evidence: `Index of coincidence ${ic.toFixed(4)}, against ${ENGLISH_IOC} for English. Letters repeat as often as they do in English, so each plaintext letter still maps to one ciphertext letter, or none of them were replaced at all.`,
     });
   } else if (ratio < 0.72) {
     notes.push({
