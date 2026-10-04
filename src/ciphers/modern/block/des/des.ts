@@ -34,11 +34,22 @@
  *
  * Plain TypeScript. Imports nothing from React and touches no DOM.
  */
-import type { Step, TraceResult } from '../../../types';
+import type { TraceResult } from '../../../types';
 import { fromHex, toHex } from '../../../../lib/format';
+import {
+  type MessageFormat,
+  blockRanges as blockRangesOf,
+  runMessage,
+  traceMessage,
+} from '../../../../lib/blockMessage';
+import {
+  blocksOf as blocksOfSize,
+  pad as padBytes,
+  unpad as unpadBytes,
+} from '../../../../lib/modes';
 
-export type Direction = 'encrypt' | 'decrypt';
-export type Mode = 'ECB' | 'CBC';
+export type { Direction, Mode } from '../../../../lib/modes';
+import type { Direction, Mode } from '../../../../lib/modes';
 
 export const BLOCK_BYTES = 8;
 export const KEY_BYTES = 8;
@@ -302,49 +313,37 @@ export function processBlock(block: Uint8Array, keys: Bits[], direction: Directi
   return { out: bitsToBytes(permute([...right, ...left], FP)), trace };
 }
 
+const PADDING_ERROR = 'The padding is not valid, which almost always means the key, the IV or the mode is wrong.';
+
 /** PKCS#7 over eight-byte blocks. */
 export function pad(bytes: Uint8Array): Uint8Array {
-  const extra = BLOCK_BYTES - (bytes.length % BLOCK_BYTES);
-  const out = new Uint8Array(bytes.length + extra);
-  out.set(bytes);
-  out.fill(extra, bytes.length);
-  return out;
+  return padBytes(bytes, BLOCK_BYTES);
 }
 
 export function unpad(bytes: Uint8Array): Uint8Array | null {
-  if (bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) return null;
-  const extra = bytes[bytes.length - 1] ?? 0;
-  if (extra < 1 || extra > BLOCK_BYTES || extra > bytes.length) return null;
-  for (let i = bytes.length - extra; i < bytes.length; i += 1) {
-    if (bytes[i] !== extra) return null;
-  }
-  return bytes.slice(0, bytes.length - extra);
+  return unpadBytes(bytes, BLOCK_BYTES);
 }
 
 export function blocksOf(bytes: Uint8Array): Uint8Array[] {
-  const out: Uint8Array[] = [];
-  for (let i = 0; i < bytes.length; i += BLOCK_BYTES) out.push(bytes.slice(i, i + BLOCK_BYTES));
-  return out;
-}
-
-function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
-  return a.map((byte, i) => byte ^ (b[i] ?? 0));
+  return blocksOfSize(bytes, BLOCK_BYTES);
 }
 
 export interface Options {
   key: Uint8Array;
   mode: Mode;
   iv: Uint8Array;
+  /** What the message box holds when encrypting. Defaults to text. */
+  format?: MessageFormat;
 }
 
-export function readKey(hex: string): Uint8Array {
+export function readKey(hex: string, label = 'A DES key'): Uint8Array {
   const bytes = fromHex(hex.replace(/\s+/g, ''));
   if (bytes === null) {
     throw new Error('The key must be hexadecimal: the digits 0-9 and a-f, two per byte.');
   }
   if (bytes.length !== KEY_BYTES) {
     throw new Error(
-      `A DES key is 64 bits — exactly 16 hex digits. This one is ${bytes.length * 8} bits. Only 56 of the 64 are used; every eighth bit was a parity check.`,
+      `${label} is 64 bits — exactly 16 hex digits. This one is ${bytes.length * 8} bits. Only 56 of the 64 are used; every eighth bit was a parity check.`,
     );
   }
   return bytes;
@@ -360,157 +359,60 @@ export function readIv(hex: string): Uint8Array {
   return bytes;
 }
 
+/** One block, as the shared mode loop wants it: bytes in, bytes and a trace out. */
+export function blockFunctions(key: Uint8Array) {
+  const keys = expandKey(key);
+  return {
+    encryptBlock: (block: Uint8Array) => processBlock(block, keys, 'encrypt'),
+    decryptBlock: (block: Uint8Array) => processBlock(block, keys, 'decrypt'),
+  };
+}
+
+function messageOptions(options: Options) {
+  return {
+    mode: options.mode,
+    iv: options.iv,
+    blockBytes: BLOCK_BYTES,
+    ...blockFunctions(options.key),
+    paddingError: PADDING_ERROR,
+    format: options.format ?? 'text',
+  };
+}
+
 /** The cipher over a whole message, untraced. Used by the benchmark. */
 export function des(text: string, options: Options, direction: Direction): string {
-  const keys = expandKey(options.key);
-
-  if (direction === 'encrypt') {
-    const padded = pad(new TextEncoder().encode(text));
-    let previous = options.iv;
-    let out = '';
-    for (const block of blocksOf(padded)) {
-      const input = options.mode === 'CBC' ? xor(block, previous) : block;
-      const { out: cipher } = processBlock(input, keys, 'encrypt');
-      previous = cipher;
-      out += toHex(cipher);
-    }
-    return out;
-  }
-
-  const bytes = fromHex(text.replace(/\s+/g, ''));
-  if (bytes === null || bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) {
-    throw new Error(
-      'A ciphertext is a whole number of 8-byte blocks written in hex — 16 hex digits per block.',
-    );
-  }
-
-  let previous = options.iv;
-  const plain = new Uint8Array(bytes.length);
-  blocksOf(bytes).forEach((block, i) => {
-    const { out } = processBlock(block, keys, 'decrypt');
-    const result = options.mode === 'CBC' ? xor(out, previous) : out;
-    previous = block;
-    plain.set(result, i * BLOCK_BYTES);
-  });
-
-  const stripped = unpad(plain);
-  if (stripped === null) {
-    throw new Error('The padding is not valid, which almost always means the key or the mode is wrong.');
-  }
-  return new TextDecoder().decode(stripped);
+  return runMessage(text, messageOptions(options), direction);
 }
 
 /** Where in the original text each block's bytes came from. */
 export function blockRanges(text: string, blockCount: number): { start: number; end: number }[] {
-  const encoder = new TextEncoder();
-  const ranges: { start: number; end: number }[] = [];
-  let byteAt = 0;
-  let charAt = 0;
-  for (let b = 0; b < blockCount; b += 1) {
-    const start = charAt;
-    const limit = (b + 1) * BLOCK_BYTES;
-    while (charAt < text.length && byteAt < limit) {
-      byteAt += encoder.encode(text.charAt(charAt)).length;
-      charAt += 1;
-    }
-    ranges.push({ start, end: Math.max(start, charAt) });
-  }
-  return ranges;
+  return blockRangesOf(text, blockCount, BLOCK_BYTES);
+}
+
+/** The sixteen rounds of one block, as plain data for the visualizer. */
+export function roundsAsData(trace: RoundTrace[]) {
+  return trace.map((round) => ({
+    round: round.round,
+    left: bitsToHex(round.left),
+    right: bitsToHex(round.right),
+    roundKey: round.roundKey.join(''),
+    expanded: round.expanded.join(''),
+    mixed: round.mixed.join(''),
+    substituted: bitsToHex(round.substituted),
+    fOut: bitsToHex(round.fOut),
+    newLeft: bitsToHex(round.newLeft),
+    newRight: bitsToHex(round.newRight),
+    boxes: round.boxes,
+  }));
 }
 
 /** The cipher again, one `Step` per block, with all sixteen rounds in `data`. */
 export function desTrace(text: string, options: Options, direction: Direction): TraceResult {
-  const keys = expandKey(options.key);
-  const steps: Step[] = [];
-
-  const asData = (trace: RoundTrace[]) =>
-    trace.map((round) => ({
-      round: round.round,
-      left: bitsToHex(round.left),
-      right: bitsToHex(round.right),
-      roundKey: round.roundKey.join(''),
-      expanded: round.expanded.join(''),
-      mixed: round.mixed.join(''),
-      substituted: bitsToHex(round.substituted),
-      fOut: bitsToHex(round.fOut),
-      newLeft: bitsToHex(round.newLeft),
-      newRight: bitsToHex(round.newRight),
-      boxes: round.boxes,
-    }));
-
-  if (direction === 'encrypt') {
-    const padded = pad(new TextEncoder().encode(text));
-    const blocks = blocksOf(padded);
-    const ranges = blockRanges(text, blocks.length);
-    let previous = options.iv;
-    let output = '';
-
-    blocks.forEach((block, i) => {
-      const chained = options.mode === 'CBC' ? xor(block, previous) : block;
-      const { out, trace } = processBlock(chained, keys, 'encrypt');
-      const at = output.length;
-      output += toHex(out);
-      previous = out;
-
-      steps.push({
-        index: i,
-        title: `Block ${i + 1} → ${toHex(out)}`,
-        detail: `Sixteen Feistel rounds. Each one takes the right half, runs it through F with this round's 48-bit key, XORs the result into the left half, and swaps. F is not invertible and does not need to be — reversing the key schedule undoes the whole thing regardless, which is the guarantee Feistel gives and the reason DES could afford eight S-boxes that destroy information.`,
-        output: toHex(out),
-        highlight: ranges[i] ?? { start: 0, end: 0 },
-        outputHighlight: { start: at, end: at + BLOCK_BYTES * 2 },
-        data: {
-          isBlock: true,
-          block: i,
-          mode: options.mode,
-          input: toHex(block),
-          chained: toHex(chained),
-          cipher: toHex(out),
-          trace: asData(trace),
-        },
-      });
-    });
-
-    return { output, steps };
-  }
-
-  const bytes = fromHex(text.replace(/\s+/g, ''));
-  if (bytes === null || bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) {
-    throw new Error(
-      'A ciphertext is a whole number of 8-byte blocks written in hex — 16 hex digits per block.',
-    );
-  }
-
-  let previous = options.iv;
-  const plain = new Uint8Array(bytes.length);
-
-  blocksOf(bytes).forEach((block, i) => {
-    const { out, trace } = processBlock(block, keys, 'decrypt');
-    const result = options.mode === 'CBC' ? xor(out, previous) : out;
-    previous = block;
-    plain.set(result, i * BLOCK_BYTES);
-
-    steps.push({
-      index: i,
-      title: `Block ${i + 1} → ${toHex(result)}`,
-      detail: `The same sixteen rounds, with the key schedule reversed. Nothing else changes — no inverse S-boxes, no inverse permutation inside the round — because a Feistel network is its own inverse when the keys are applied backwards.`,
-      output: toHex(result),
-      highlight: { start: i * BLOCK_BYTES * 2, end: (i + 1) * BLOCK_BYTES * 2 },
-      data: {
-        isBlock: true,
-        block: i,
-        mode: options.mode,
-        input: toHex(block),
-        cipher: toHex(result),
-        trace: asData(trace),
-      },
-    });
+  return traceMessage(text, messageOptions(options), direction, {
+    detail: (block) =>
+      block.ran === 'encrypt'
+        ? `Sixteen Feistel rounds. Each one takes the right half, runs it through F with this round's 48-bit key, XORs the result into the left half, and swaps. F is not invertible and does not need to be — reversing the key schedule undoes the whole thing regardless, which is the guarantee Feistel gives and the reason DES could afford eight S-boxes that destroy information.`
+        : `The same sixteen rounds, with the key schedule reversed. Nothing else changes — no inverse S-boxes, no inverse permutation inside the round — because a Feistel network is its own inverse when the keys are applied backwards.`,
+    traceData: roundsAsData,
   });
-
-  const stripped = unpad(plain);
-  if (stripped === null) {
-    throw new Error('The padding is not valid, which almost always means the key or the mode is wrong.');
-  }
-
-  return { output: new TextDecoder().decode(stripped), steps };
 }

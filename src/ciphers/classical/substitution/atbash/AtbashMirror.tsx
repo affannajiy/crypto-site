@@ -1,8 +1,8 @@
 /**
  * The fold.
  *
- * Caesar got a rotating disk because Caesar rotates. Atbash does not rotate — it
- * reflects — so it gets the alphabet written forwards on one line, backwards on
+ * Caesar got a shifted second row because Caesar shifts. Atbash does not shift —
+ * it reflects — so it gets the alphabet written forwards on one line, backwards on
  * the line beneath, and a rung joining each pair. The two rows are the same
  * alphabet read from opposite ends, and the picture is meant to make that obvious
  * before the prose says it.

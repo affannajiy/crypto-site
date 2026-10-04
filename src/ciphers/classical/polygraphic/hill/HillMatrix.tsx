@@ -2,7 +2,7 @@
  * The multiplication, written out.
  *
  * Every other classical visualizer in this app can show the cipher as a place a
- * letter goes: a disk position, a square, a rail, a column. Hill has no such
+ * letter goes: a table cell, a square, a rail, a column. Hill has no such
  * place, because no output letter belongs to any single input letter. So this
  * draws the arithmetic itself — the matrix, the vector, and the two dot products
  * — with the row being computed marked.

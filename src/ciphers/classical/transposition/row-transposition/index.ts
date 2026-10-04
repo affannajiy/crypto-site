@@ -69,6 +69,18 @@ the column order correctly but the column lengths wrongly gets nonsense. Padding
 on the other hand, makes the lengths stop being a secret at all, which is easier
 to write and easier to break.
 
+## Lecture note
+
+The lecture example is the key 4 3 1 2 5 6 7 on "attack postponed until two am",
+padded with x, y and z. The ciphertext is TTNA APTM TSUO AODW COIX KNLY PETZ.
+That is the first example above.
+
+The lecture also introduces transposition with WORLD → RLDOW, written as the
+order (3, 4, 5, 2, 1). That is one row of five columns, read in the order 3, 4,
+5, 2, 1. As a Row Transposition key, that order is **54123**: column 3 is read
+first, so it gets rank 1. Column 4 gets rank 2, and so on. The second example
+loads it.
+
 ## How this breaks
 
 **A short key can be searched exhaustively, and the Attack tab does it.** It tries
@@ -149,6 +161,11 @@ const rowTranspositionCipher: CipherModule = {
       label: 'The textbook example',
       input: 'attackpostponeduntiltwoam',
       params: { key: '4312567', pad: 'pad' },
+    },
+    {
+      label: 'Lecture intro: WORLD becomes RLDOW',
+      input: 'WORLD',
+      params: { key: '54123', pad: 'ragged' },
     },
     {
       label: 'A keyword instead of numbers',

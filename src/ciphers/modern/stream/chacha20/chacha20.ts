@@ -32,6 +32,10 @@
  * is why it is the cipher of choice on phones and embedded devices, and why TLS
  * offers it alongside AES rather than instead of it.
  *
+ * **Do not use this file for anything real.** It is written for reading. It has
+ * no authentication, and it has had none of the review a real implementation
+ * needs.
+ *
  * Plain TypeScript. Imports nothing from React and touches no DOM.
  */
 import type { Step, TraceResult } from '../../../types';

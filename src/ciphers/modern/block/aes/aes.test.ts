@@ -405,3 +405,52 @@ describe('the module', () => {
     expect(aesCipher.explainer).toContain('authenticat');
   });
 });
+
+describe('the lecture worked examples', () => {
+  it('sends 45 to 6E through the S-box, as the SubBytes slide shows', () => {
+    expect(SBOX[0x45]).toBe(0x6e);
+  });
+
+  it('mixes the slide column 87 6E 46 A6 into 47 37 94 ED', () => {
+    // MixColumns works on the four columns at once. Put the slide column first
+    // and read the first column back.
+    const state = new Uint8Array(16);
+    state.set([0x87, 0x6e, 0x46, 0xa6], 0);
+    expect(toHex(mixColumns(state).slice(0, 4))).toBe('473794ed');
+  });
+
+  it('multiplies by 02 as a shift and a conditional XOR with 1B, and by 03 as 02 XOR itself', () => {
+    expect(gmul(0x87, 2)).toBe(((0x87 << 1) & 0xff) ^ 0x1b);
+    expect(gmul(0x46, 2)).toBe(0x46 << 1);
+    expect(gmul(0x6e, 3)).toBe(gmul(0x6e, 2) ^ 0x6e);
+  });
+
+  it('runs 10, 12 or 14 rounds, as the summary table says', () => {
+    const rounds = (bytes: number) =>
+      (aesTrace('x', { key: new Uint8Array(bytes), mode: 'ECB', iv: new Uint8Array(16) }, 'encrypt').steps[0]?.data?.[
+        'rounds'
+      ]);
+    expect([rounds(16), rounds(24), rounds(32)]).toEqual([10, 12, 14]);
+  });
+});
+
+describe('raw hex input', () => {
+  it('reproduces FIPS-197 Appendix C.1 with no padding', () => {
+    const out = aes('00112233445566778899aabbccddeeff', { key: hex('000102030405060708090a0b0c0d0e0f'), mode: 'ECB', iv: new Uint8Array(16), format: 'hex' }, 'encrypt');
+    expect(out).toBe('69c4e0d86a7b0430d8cdb78070b4c55a');
+  });
+
+  it('decrypts back to hex rather than text', () => {
+    const options = { key: hex('000102030405060708090a0b0c0d0e0f'), mode: 'ECB' as const, iv: new Uint8Array(16), format: 'hex' as const };
+    expect(aes('69c4e0d86a7b0430d8cdb78070b4c55a', options, 'decrypt')).toBe('00112233445566778899aabbccddeeff');
+  });
+
+  it('round-trips text through every mode', () => {
+    const text = 'Every mode, one sentence, any length.';
+    const key = hex('000102030405060708090a0b0c0d0e0f');
+    const iv = hex('0f0e0d0c0b0a09080706050403020100');
+    for (const mode of ['ECB', 'CBC', 'CFB', 'OFB', 'CTR'] as const) {
+      expect(aes(aes(text, { key, mode, iv }, 'encrypt'), { key, mode, iv }, 'decrypt')).toBe(text);
+    }
+  });
+});

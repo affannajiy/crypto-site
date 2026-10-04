@@ -8,7 +8,7 @@
 import type { CipherModule, Params, TraceResult } from '../../../types';
 import { caesar, caesarTrace } from './caesar';
 import { bruteForceCaesar } from './attack';
-import CaesarRings from './CaesarRings';
+import CaesarStrips from './CaesarStrips';
 
 /**
  * Params arrive as `string | number` because they come from form controls. The
@@ -52,6 +52,19 @@ output readable, and it is also the first thing that leaks.
 **ROT13** is Caesar with a shift of 13, and it is still used to hide a spoiler or
 a punchline in plain sight. It protects nothing, and that is the point of it.
 ROT13 is a politeness convention, not a cipher.
+
+## Lecture note
+
+The lecture draws Caesar as two alphabets, the second shifted three places, with
+A→D, B→E and C→F. That is the first example above, and the Visualize tab draws the
+same table. The lecture uses Caesar as the example of **confusion**, which is
+Shannon's word for substitution.
+
+Lab 03, Experiment 1, calls this cipher a "monoalphabetic substitution cipher".
+That is true, but it is not the whole of the class. Every Caesar shift is
+monoalphabetic, because one fixed alphabet serves the whole message. But only 25 of
+the 26! monoalphabetic keys are shifts. The Monoalphabetic page shows the general
+case, where the key is any shuffle of the alphabet.
 
 ## How this breaks
 
@@ -112,8 +125,8 @@ const caesarCipher: CipherModule = {
   ],
   examples: [
     {
-      label: 'The classic shift of three',
-      input: 'Meet me at the old bridge at midnight.',
+      label: 'Lecture example: shift of three',
+      input: 'meet me after the toga party',
       params: { shift: 3 },
     },
     {
@@ -143,7 +156,7 @@ const caesarCipher: CipherModule = {
   attack: bruteForceCaesar,
   attackScoreLabel: 'chi-squared',
 
-  visualize: CaesarRings,
+  visualize: CaesarStrips,
 };
 
 export default caesarCipher;

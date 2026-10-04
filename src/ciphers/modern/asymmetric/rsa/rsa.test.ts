@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildKeys,
+  euclidTable,
   factor,
   gcd,
   isPrime,
@@ -12,6 +13,7 @@ import {
   rsaTrace,
 } from './rsa';
 import rsaCipher from './index';
+import { hashToNumber, sign, verify } from './signature';
 
 describe('the number theory', () => {
   it('recognises primes', () => {
@@ -74,8 +76,8 @@ describe('buildKeys', () => {
   });
 
   it('refuses an e outside the usable range', () => {
-    expect(() => buildKeys(61, 53, 1)).toThrow(/between 2/);
-    expect(() => buildKeys(61, 53, 3120)).toThrow(/between 2/);
+    expect(() => buildKeys(61, 53, 1)).toThrow(/1 < e < φ\(n\)/);
+    expect(() => buildKeys(61, 53, 3120)).toThrow(/1 < e < φ\(n\)/);
   });
 });
 
@@ -214,7 +216,7 @@ describe('rsaTrace', () => {
 
 describe('the module', () => {
   it('round-trips through the module', () => {
-    const params = { p: 61, q: 53, e: 17 };
+    const params = { p: 61, q: 53, e: 17, message: 'text' };
     const encrypted = rsaCipher.encrypt('Attack at dawn', params);
     const output = 'output' in encrypted ? encrypted.output : '';
     // `decrypt` is optional on the contract now that a hash can declare itself
@@ -226,11 +228,13 @@ describe('the module', () => {
   });
 
   it('ships defaults that encrypt on first render', () => {
-    const defaults: Record<string, number> = {};
+    const defaults: Record<string, number | string> = {};
     for (const spec of rsaCipher.params) {
-      if (spec.kind === 'number') defaults[spec.name] = spec.default;
+      if (spec.kind === 'number' || spec.kind === 'select') defaults[spec.name] = spec.default;
     }
-    expect(() => rsaCipher.encrypt('Meet me at dawn', defaults)).not.toThrow();
+    expect(defaults['message']).toBe('numbers');
+    expect(() => rsaCipher.encrypt('31', defaults)).not.toThrow();
+    expect(() => rsaCipher.encrypt('Meet me at dawn', { ...defaults, message: 'text' })).not.toThrow();
   });
 
   it('is in the asymmetric family, which no cipher was before it', () => {
@@ -247,5 +251,112 @@ describe('the module', () => {
     expect(rsaCipher.explainer).toContain('textbook RSA');
     expect(rsaCipher.explainer).toContain('OAEP');
     expect(rsaCipher.explainer).toContain("Shor's algorithm");
+  });
+});
+
+describe('the Lecture 05 example', () => {
+  const keys = buildKeys(47, 59, 17, 'numbers');
+
+  it('builds n = 2773, φ(n) = 2668 and d = 157', () => {
+    expect([keys.n, keys.phi, keys.d]).toEqual([2773n, 2668n, 157n]);
+  });
+
+  it('encrypts M = 31 to C = 587 and back', () => {
+    expect(rsa('31', keys, 'encrypt', 'numbers')).toBe('587');
+    expect(rsa('587', keys, 'decrypt', 'numbers')).toBe('31');
+  });
+
+  it('works d out with the same Euclidean table the slide implies', () => {
+    const rows = euclidTable(17n, 2668n);
+    expect(rows.map((r) => r.remainder)).toEqual([2668n, 17n, 16n, 1n]);
+    expect(rows.map((r) => r.quotient)).toEqual([null, null, 156n, 1n]);
+    const last = rows[rows.length - 1];
+    expect(((last?.s ?? 0n) % 2668n + 2668n) % 2668n).toBe(157n);
+  });
+
+  it('writes each number as the slide does', () => {
+    const { steps } = rsaTrace('31', keys, 'encrypt', 'numbers');
+    expect(steps[0]?.title).toBe('C = 31^17 mod 2773 = 587');
+    const back = rsaTrace('587', keys, 'decrypt', 'numbers');
+    expect(back.steps[0]?.title).toBe('M = 587^157 mod 2773 = 31');
+  });
+
+  it('opens on that example', () => {
+    expect(rsaCipher.examples?.[0]).toMatchObject({ input: '31', params: { p: 47, q: 59, e: 17, message: 'numbers' } });
+  });
+});
+
+describe('the other lecture and lab keys', () => {
+  it('encrypts 2 to 4 with the diagram key n = 14, e = 5', () => {
+    const keys = buildKeys(2, 7, 5, 'numbers');
+    expect(rsa('2', keys, 'encrypt', 'numbers')).toBe('4');
+    // The slide's d = 11 and this page's d = 5 are the same mod φ(n) = 6.
+    expect(keys.d).toBe(5n);
+    expect(modPow(4n, 11n, 14n)).toBe(2n);
+  });
+
+  it('accepts e = 5, 7 and 11 for p = 3, q = 7, and refuses the rest', () => {
+    const ok = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11].filter((e) => {
+      try {
+        buildKeys(3, 7, e, 'numbers');
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    expect(ok).toEqual([5, 7, 11]);
+  });
+
+  it('refuses Lab 05 as printed, because e = 65537 is larger than φ(n) = 160', () => {
+    expect(() => buildKeys(17, 11, 65537, 'numbers')).toThrow(/1 < e < φ\(n\)/);
+  });
+
+  it('runs Lab 05 with a valid e', () => {
+    const keys = buildKeys(17, 11, 7, 'numbers');
+    expect([keys.n, keys.phi, keys.d]).toEqual([187n, 160n, 23n]);
+    const c = rsa('42', keys, 'encrypt', 'numbers');
+    expect(rsa(c, keys, 'decrypt', 'numbers')).toBe('42');
+  });
+
+  it('refuses M = 345 when n = 187, and says what it would have become', () => {
+    const keys = buildKeys(17, 11, 7, 'numbers');
+    expect(() => rsa('345', keys, 'encrypt', 'numbers')).toThrow(/not less than n = 187.*158/);
+  });
+
+  it('refuses words in number mode, and says how to encrypt them', () => {
+    const keys = buildKeys(47, 59, 17, 'numbers');
+    expect(() => rsa('hello', keys, 'encrypt', 'numbers')).toThrow(/set the message to text/);
+  });
+
+  it('allows a small n for numbers but not for text', () => {
+    expect(() => buildKeys(2, 7, 5, 'numbers')).not.toThrow();
+    expect(() => buildKeys(2, 7, 5, 'text')).toThrow(/too small for text/);
+  });
+});
+
+describe('Lab 07 signatures', () => {
+  const keys = buildKeys(47, 59, 17, 'numbers');
+
+  it('verifies a signature made with d, using only e and n', () => {
+    const signed = sign('I owe Bob 10 ringgit.', keys);
+    expect(signed.signature).toBe(modPow(signed.h, keys.d, keys.n));
+    expect(verify('I owe Bob 10 ringgit.', signed.signature, { n: keys.n, e: keys.e }).valid).toBe(true);
+  });
+
+  it('fails when the document changes', () => {
+    const signed = sign('I owe Bob 10 ringgit.', keys);
+    expect(verify('I owe Bob 99 ringgit.', signed.signature, keys).valid).toBe(false);
+  });
+
+  it('fails when the signature was made with a different key', () => {
+    const other = buildKeys(61, 53, 17, 'numbers');
+    const forged = sign('I owe Bob 10 ringgit.', other);
+    expect(verify('I owe Bob 10 ringgit.', forged.signature, keys).valid).toBe(false);
+  });
+
+  it('hashes with SHA-256 and reduces mod n, which is the toy step', () => {
+    const { digest, h } = hashToNumber('abc', keys.n);
+    expect(digest).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    expect(h).toBe(BigInt(`0x${digest}`) % keys.n);
   });
 });

@@ -71,6 +71,19 @@ AES instructions, and why TLS 1.3 offers both.
 reversible. Without adding the starting state back in, anyone could run the rounds
 backwards from the keystream and read the key out of the state.
 
+## Lecture note
+
+The lecture lists ChaCha20 as "the modified version of Salsa20" and notes that
+TLS 1.3 supports it. Both are right. Bernstein published ChaCha in 2008 as a
+variant of his own Salsa20. It moves the constants to the top row, mixes columns
+then diagonals instead of columns then rows, and updates each word twice in a
+quarter-round. Each change spreads a flipped bit faster. The Salsa20 page has a
+table of every difference.
+
+TLS 1.3 offers ChaCha20 with the Poly1305 MAC as one of its five cipher suites.
+Phones without AES hardware use it, because add, rotate and XOR are fast on any
+processor.
+
 ## How this breaks
 
 **Not by cryptanalysis.** The best public attack reaches seven of the twenty
@@ -106,6 +119,9 @@ under this one. Do not read a bare stream cipher as a usable construction.
 **And the counter runs out.** ChaCha20's block counter is 32 bits, so one
 key-and-nonce pair covers 2³² × 64 bytes — about 256 GB. Past that the counter
 wraps and the keystream repeats, which is nonce reuse arriving on its own.
+
+**This code is for reading, not for use.** It has had none of the care a real
+implementation needs.
 `.trim();
 
 const chachaCipher: CipherModule = {

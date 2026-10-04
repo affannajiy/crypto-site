@@ -13,7 +13,7 @@
  *
  * The cost of working on pairs is that the cipher stops preserving your text.
  * Spaces and punctuation are dropped, J is folded into I, doubled letters get an
- * X wedged between them, and an odd length gets padded. The output is a different
+ * X wedged between them, and an odd length gets a Z on the end. The output is a different
  * length from the input, which is why every step carries `outputHighlight`.
  *
  * Plain TypeScript. This file imports nothing from React and touches no DOM.
@@ -31,10 +31,19 @@ export const SIZE = 5;
  */
 export const SQUARE_ALPHABET = 'ABCDEFGHIKLMNOPQRSTUVWXYZ';
 
-/** Wedged between a doubled pair, and used to pad an odd length. */
+/** Wedged between a doubled pair: BALLOON becomes BA LX LO ON. */
 export const PADDING = 'X';
-/** Used instead when the letter needing padding is itself an X. */
+/** Used instead when the doubled letter is itself an X. */
 export const ALTERNATE_PADDING = 'Q';
+/**
+ * Added to the end of an odd-length message. The course slides and lab sheet
+ * both use Z here and X only for doubles: INSTRUMENTS splits as IN ST RU ME NT SZ,
+ * and HIDEMONEY as HI DE MO NE YZ. Two letters for two jobs also tells a reader
+ * which one they are looking at.
+ */
+export const ODD_PADDING = 'Z';
+/** Used instead when the last letter is itself a Z. */
+export const ALTERNATE_ODD_PADDING = 'X';
 
 /**
  * Builds the 5x5 square: the keyword's letters first, in order, each used once,
@@ -83,7 +92,7 @@ export interface PreparedLetter {
  *   3. A pair of identical letters gets a padding letter wedged between them.
  *      Playfair cannot encrypt a doubled pair — the rules below have nothing to
  *      say about a letter and itself.
- *   4. An odd number of letters gets one padding letter on the end.
+ *   4. An odd number of letters gets a Z on the end (an X, if it ends in Z).
  *
  * Each prepared letter remembers which character of the original it came from, so
  * the Encrypt tab can still point at the right part of the message the user typed.
@@ -116,7 +125,7 @@ export function prepare(text: string): PreparedLetter[] {
   if (prepared.length % 2 === 1) {
     const last = prepared[prepared.length - 1];
     prepared.push({
-      letter: last?.letter === PADDING ? ALTERNATE_PADDING : PADDING,
+      letter: last?.letter === ODD_PADDING ? ALTERNATE_ODD_PADDING : ODD_PADDING,
       source: -1,
     });
   }

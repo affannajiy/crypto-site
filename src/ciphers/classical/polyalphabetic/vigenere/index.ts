@@ -8,7 +8,7 @@
 import type { CipherModule, Params, TraceResult } from '../../../types';
 import { vigenereTrace } from './vigenere';
 import { breakVigenere } from './attack';
-import VigenereDisk from './VigenereDisk';
+import VigenereTable from './VigenereTable';
 
 /**
  * Params arrive as `string | number` because they come from form controls.
@@ -42,6 +42,14 @@ Each key letter is a shift, whereby A is 0, B is 1 and L is 11. As a result, eve
 column is a plain Caesar cipher with its own shift. A shifted by L (11) is L, T
 shifted by E (4) is X, and T shifted by M (12) is F. The message becomes
 **LXFOPVEFRNHR**.
+
+On paper, the lecture does this with the **Vigenère table**, also called the
+tabula recta: 26 rows, each one a Caesar alphabet shifted one more place than the
+row above. Find the plaintext letter in the top row and the key letter in the left
+column. Where they cross is the ciphertext letter. To decrypt, go along the key
+letter's row to the ciphertext letter and read the plaintext letter at the top of
+that column. The Visualize tab draws this table and lights the row, the column and
+the crossing for each letter.
 
 Two things follow from this, and both matter.
 
@@ -138,8 +146,13 @@ const vigenereCipher: CipherModule = {
       params: { key: 'DECEPTIVE' },
     },
     {
-      label: 'The classic LEMON',
-      input: 'Meet me at the old bridge at midnight.',
+      label: 'Lecture slide: ATTACKATDAWN with LEMON',
+      input: 'ATTACKATDAWN',
+      params: { key: 'LEMON' },
+    },
+    {
+      label: 'Lab sheet: ThisisIASlab with LEMON',
+      input: 'ThisisIASlab',
       params: { key: 'LEMON' },
     },
     {
@@ -165,7 +178,7 @@ const vigenereCipher: CipherModule = {
   attack: breakVigenere,
   attackScoreLabel: 'chi-squared',
 
-  visualize: VigenereDisk,
+  visualize: VigenereTable,
 };
 
 export default vigenereCipher;

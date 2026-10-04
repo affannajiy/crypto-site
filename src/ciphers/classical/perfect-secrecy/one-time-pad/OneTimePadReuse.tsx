@@ -15,7 +15,8 @@
  * plaintexts — and shows them matching, because a claim you can check beats a
  * claim you are asked to believe.
  *
- * This is the only file in the cipher folder that knows React exists.
+ * This file, `VernamTable.tsx` and `OneTimePadVisual.tsx` are the only ones in
+ * the cipher folder that know React exists.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Params, Step } from '../../../types';

@@ -20,9 +20,27 @@ Non-goals, enforced:
 
 ## Course scope
 
-The site shows only the six ciphers of the owner's course: Lecture 03 and Lab 03 on classical
-ciphers. They are Caesar, Monoalphabetic, Playfair, Vigenère, Rail Fence and Row Transposition.
+The site shows only the ciphers of the owner's course syllabus: Lectures 03 to 05 and Labs 03
+to 07 of Dr Low's cryptography slides. There are sixteen:
+
+| Lecture | Shown |
+| --- | --- |
+| 03, classical | Caesar, Monoalphabetic, Playfair, Vigenère, Rail Fence, Row Transposition |
+| 03, stream | One-Time Pad (the Vernam pad in the notes, with a letters mode and a Vernam XOR mode), Salsa20, ChaCha20, RC4, A5/1 |
+| 04, block | Feistel, DES, Triple DES, AES, with ECB, CBC, CFB, OFB and CTR inside each block cipher |
+| 05, public key | RSA, with Lab 07's digital signature on its Visualize tab |
+
 The other entries stay in the repository. They are hidden, not deleted.
+
+The slides name some things only in passing. They are deliberately not built: El Gamal, McEliece,
+IDEA, Twofish, Serpent, and KDC/Kerberos. The slides give no example for them, so a page would be
+invented content. "TrueCrypt" appears in the slides' list of public-key algorithms. It is
+disk-encryption software, not an algorithm. The RSA explainer says so.
+
+Every explainer of a shown cipher has a "Lecture note" section where the slides or labs say
+something worth checking. Where a slide or lab sheet is wrong, the page shows the correct
+result and names the slip. Examples: the lab's rail fence answer IELVASOI, Lab 05's e = 65537
+with φ(n) = 160, and the lecture's "MD5 matrix" for MDS.
 
 - `COURSE_SLUGS` in `registry.ts` is the list of shown ciphers.
 - `ciphers` is the shown list. Every page reads it.
@@ -33,6 +51,9 @@ The other entries stay in the repository. They are hidden, not deleted.
 - To show a hidden cipher again, add its slug to `COURSE_SLUGS`.
 - Each course cipher's default key and first example are the textbook example. The Playground
   and the tests rely on this.
+- `CipherWorkbench` opens every page on its first non-error example: that example's message and
+  key. A fixed English sentence opened the Feistel page (binary) and RSA (numbers) on an error.
+- `params.test.ts` randomises each cipher against its own first example, for the same reason.
 
 ## Commands
 
@@ -131,6 +152,19 @@ In development, and therefore in tests, the registry validates at module load. I
 | `src/lib/bytes.ts` | Byte and hex conversion: `utf8Bytes`, `bytesToHex`, `hexToBytes`, `xorBytes`. |
 | `src/lib/analysis.ts` | `indexOfCoincidence`, `topNgrams`, `observe`. |
 | `src/lib/bigrams.ts` | Adjacent-pair scoring for transposition attacks. |
+| `src/lib/modes.ts` | The five modes of NIST SP 800-38A for any block cipher: `runMode`, PKCS#7, `MODE_OPTIONS`. |
+| `src/lib/blockMessage.ts` | A block cipher over a whole message: text or hex in, one `Step` per block, `FORMAT_OPTIONS`. |
+| `src/components/ModeChain.tsx` | The mode diagram and per-block table. AES, DES and Triple DES visualizers all place it. |
+
+**One mode loop serves every block cipher.** AES, DES and Triple DES each used to carry their
+own ECB and CBC loop. Adding CFB, OFB and CTR to three copies would have been three chances to
+get one wrong. Now each supplies only a block function to `lib/blockMessage.ts`. The modes are
+tested once, in `modes.test.ts`, against the NIST SP 800-38A AES vectors for all five modes and
+against WebCrypto's AES-CTR.
+
+The **message format** select (`text` or `hex`) exists for test vectors and lab experiments.
+`hex` is raw bytes with no padding. The classic DES vector is the *bytes* 0123456789ABCDEF, not
+sixteen characters, and the Lab 04 weak-key experiment needs raw blocks.
 
 The first eleven ciphers each carry their own copies of the letter helpers. This was
 acceptable at two ciphers and silly at eleven. They keep their copies. Rewriting a working,
@@ -173,7 +207,9 @@ with confidence.
 registry can therefore use it.
 
 - A number param randomises from its own range.
-- A select param randomises from its own options.
+- A select param randomises from its own options, unless it sets `randomise: false`. A select
+  that is not part of the key, such as the message format, opts out. A random message format
+  turns a working page into an error.
 - **A text param cannot randomise by default.** A Vigenère keyword and an AES key are both
   strings. A text param opts in with `randomise: { alphabet, length }`.
 - Where params are valid only *together*, the cipher owns the whole job through `randomKey()`.
@@ -194,7 +230,7 @@ Three more pages read the registry and add no field to the contract. That was th
 had to pass. A page that needed a cipher to declare something for it would be the wrong page.
 
 **`/timeline`** is the catalogue by date. It is out of the nav and the command palette, because
-six ciphers make a poor timeline. The route still works. `src/lib/chronology.ts` is React-free
+a course list makes a poor timeline. The route still works. `src/lib/chronology.ts` is React-free
 and tested. It
 parses the free-text `year` into a sort key. `parseYear` negates BC. It sorts `'1500s'` from
 1500. It returns **`null` rather than a guess** for `'ancient'`. Therefore Affine sits in a
@@ -209,12 +245,24 @@ reason that no badge is. The "Breakable here" column states whether *this app* s
 attack. The note under the table states plainly that every "No" row is thoroughly broken, and
 names the search program that the attack would need.
 
-**`/playground`** runs one message through every shown cipher at once, one row each. The rows
-sit under two headings from `TECHNIQUES`: Substitution (confusion) and Transposition
-(diffusion). Each row is an ordinary `useCipherRun`. Therefore async ciphers and thrown param
-errors behave exactly as they do on a cipher page.
+**`/playground`** runs one message through every shown cipher at once, one row each. The
+classical rows sit under the two headings from `TECHNIQUES`: Substitution (confusion) and
+Transposition (diffusion). Every other row sits under its `GROUPS` heading, in catalogue
+order: Perfect secrecy, Stream ciphers, Block ciphers, Public key. Each row is an ordinary
+`useCipherRun`. Therefore async ciphers and thrown param errors behave exactly as they do on a
+cipher page.
 
-- Each row starts on the cipher's first example key, which is the textbook key.
+- Each row starts on `textStartParams` in `params.ts`: the defaults, then the first example
+  key, then the cipher's `textParams`.
+- **`textParams` is how a non-text cipher joins the Playground.** Feistel's lecture example
+  is binary, RSA's is numbers, and the DES test vector is raw hex. Each declares the switch
+  that makes it read English, such as `{ format: 'text' }`. The Playground never branches on
+  a slug. The registry validates `textParams` like an example key.
+- `params.test.ts` encrypts and decrypts the Playground's sentence with every shown cipher on
+  `textStartParams`. A new course cipher that cannot read English fails there.
+- In decrypt mode, a row that refuses the input prints a quiet line, not an orange box. Most
+  rows are expected to refuse: a Caesar ciphertext is not hex.
+- "Decrypt this" on a row puts its output in the box and flips every row to decrypt.
 - The key controls sit in a collapsed `<details>`. The row shows a one-line key summary.
 - **One direction control applies to every row.** Decrypt is there so that a student can paste
   a ciphertext and see which row reads as English. A decrypt on one row and an encrypt on
@@ -277,8 +325,8 @@ true at twenty ciphers. Pretending otherwise would mean inventing differences.
 | Bacon | No key at all. The protection is concealment. To break it you *notice*; you do not compute. |
 | Morse | Nothing is hidden. It is not encryption. |
 
-**3. `attack(ciphertext)` cannot express the real attack.** This is contract gap 6, hit four
-times.
+**3. `attack(ciphertext)` cannot express the real attack.** This is contract gap 6, now hit by
+eight ciphers.
 
 | Cipher | What the attack needs and cannot be given |
 | --- | --- |
@@ -286,6 +334,9 @@ times.
 | Enigma | A **crib**, slid along the ciphertext against the rule that no letter is ever itself. |
 | ADFGVX | **Several messages in depth.** Painvin needed a stack of same-length intercepts from one day. The signature gives exactly one. |
 | RSA, Diffie-Hellman | The **public key**, which is a param and not a ciphertext. Both put their break on the Visualize tab, which does receive params. |
+| Feistel | A **known plaintext**. Its F is R XOR K, so it is linear, and one known pair decrypts everything. The test checks that E(P) XOR E(P') is the same for every key. |
+| RC4 | **Many ciphertexts**: WEP packets under related keys, or one cookie under millions of TLS keys. The second-byte bias is measured live on Visualize instead. |
+| A5/1 | A **two-terabyte table and a known plaintext** from the GSM control channel. |
 
 **4. Breaking it is the frequency analysis that the Caesar page already shows.**
 
@@ -299,8 +350,9 @@ the table.
 
 | Cipher | Reason |
 | --- | --- |
-| AES, ChaCha20 | No known practical attack. A button that suggested otherwise would be the most misleading thing in this app. |
+| AES, ChaCha20, Salsa20 | No known practical attack. A button that suggested otherwise would be the most misleading thing in this app. |
 | DES | Broken by brute force over 2⁵⁶. That is a real, successful, historically important attack, and it is hardware and money rather than a button. The design held. The key was too short. |
+| Triple DES | Meet-in-the-middle costs 2¹¹², and Sweet32 needs about 32 GB under one key. Neither is a button. |
 
 **6. The attack is real, published, and takes no ciphertext.** This kind arrived with the
 hashing family. It is the sharpest illustration of gap 6. These are not ciphers that resisted.
@@ -344,7 +396,7 @@ Enter on the button does.
 
 `Step.data` is a free-form `Record<string, unknown>`. It is the **only** channel from an
 algorithm to its visualizer. Read it defensively with `typeof` guards. See `readMapping` in
-`CaesarRings.tsx`. Nothing else in the app may read it.
+`CaesarStrips.tsx`. Nothing else in the app may read it.
 
 ### Attacks own their statistic
 
@@ -445,6 +497,9 @@ Functionality over beauty. The screen should explain the algorithm, not decorate
   into one long paragraph, and their italics had been printing as literal asterisks. Alignment
   is the whole point of a diagram. Check the diagrams of a new explainer on the page. Do not
   trust the source.
+- **Explainers may also use pipe tables, and list items may wrap.** A table scrolls inside its
+  own box at 320 px. A wrapped list item continues on lines indented by two spaces. Before
+  this, a wrapped list printed as one paragraph.
 
 ## The safety notice
 
@@ -575,7 +630,7 @@ cannot be reversed. The problem is that the output is not a message at all.
 
 ## Roadmap and scope discipline
 
-**Thirty-three entries are in the repository, in five families. Six are shown.** The folder
+**Thirty-nine entries are in the repository, in five families. Sixteen are shown.** The folder
 tree is the curriculum. This table is what is in it. Shown entries are in **bold**.
 
 | Family | Group | Entries |
@@ -587,10 +642,11 @@ tree is the curriculum. This table is what is in it. Shown entries are in **bold
 | | Transposition | **Rail Fence**, **Row Transposition** |
 | | Fractionation | Bifid, Trifid, Nihilist, ADFGVX, Straddling Checkerboard |
 | | Mechanical | Enigma |
-| | Perfect secrecy | One-Time Pad |
-| Symmetric | Block and stream | DES, AES, ChaCha20 |
+| | Perfect secrecy | **One-Time Pad** |
+| Symmetric | Stream | **Salsa20**, **ChaCha20**, **RC4**, **A5/1** |
+| | Block | **Feistel**, **DES**, **Triple DES**, **AES** |
 | Hashing | Digests | MD5, SHA-1, SHA-256, SHA-512, PBKDF2 |
-| Asymmetric | Public key | RSA |
+| Asymmetric | Public key | **RSA** |
 | | Key exchange | Diffie-Hellman |
 
 **The hashing family is complete as planned.** Gap 8 was settled first, as this file said it

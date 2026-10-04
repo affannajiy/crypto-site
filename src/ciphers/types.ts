@@ -48,6 +48,12 @@ export type ParamSpec =
       label: string;
       options: { value: string; label: string }[];
       default: string;
+      /**
+       * False for a select that is not part of the key, such as how to read the
+       * message box. The randomise button leaves it alone, because a random
+       * message format turns a working page into an error.
+       */
+      randomise?: false;
     }
   | { kind: 'bytes'; name: string; label: string; lengthBytes: number };
 
@@ -194,6 +200,17 @@ export interface CipherModule {
    * cipher with no worked example is a form the reader has to guess at.
    */
   examples?: CipherExample[];
+  /**
+   * Params that let this cipher take an ordinary English message, merged over
+   * its first example's key.
+   *
+   * The Playground runs one sentence through every cipher. Most ciphers take a
+   * sentence as they stand. A few open on a lecture example that is not text:
+   * the Feistel example is binary, the RSA example is numbers, and the DES test
+   * vector is raw hex. Each of those names the switch that makes it read text,
+   * so the Playground needs no special case and never branches on a slug.
+   */
+  textParams?: Params;
   /** True for WebCrypto-backed ciphers, so the UI knows to expect a promise. */
   isAsync?: boolean;
 

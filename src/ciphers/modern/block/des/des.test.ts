@@ -279,3 +279,44 @@ describe('the module', () => {
     expect(desCipher.explainer).toContain('differential');
   });
 });
+
+describe('the Lab 04 experiments', () => {
+  const run = (key: string, input: string) =>
+    des(input, { key: hex(key), mode: 'ECB', iv: new Uint8Array(8), format: 'hex' }, 'encrypt');
+  const complement = (h: string) =>
+    toHex((hex(h)).map((byte) => byte ^ 0xff));
+
+  it('reproduces the classic vector on raw bytes', () => {
+    expect(run('133457799bbcdff1', '0123456789abcdef')).toBe('85e813540f0ab405');
+  });
+
+  it('returns the plaintext after two encryptions under a weak key', () => {
+    for (const weak of ['0101010101010101', 'fefefefefefefefe', 'e0e0e0e0f1f1f1f1', '1f1f1f1f0e0e0e0e']) {
+      const once = run(weak, '0123456789abcdef');
+      expect([weak, run(weak, once)]).toEqual([weak, '0123456789abcdef']);
+    }
+    expect(run('0101010101010101', '0123456789abcdef')).toBe('617b3a0ce8f07100');
+  });
+
+  it('gives all sixteen round keys equal for a weak key', () => {
+    const keys = expandKey(hex('0101010101010101')).map((k) => k.join(''));
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  it('has the complement property: E(~K, ~P) = ~E(K, P)', () => {
+    const key = '133457799bbcdff1';
+    const plain = '0123456789abcdef';
+    expect(run(complement(key), complement(plain))).toBe(complement(run(key, plain)));
+    expect(complement(key)).toBe('eccba8866443200e');
+    expect(run('eccba8866443200e', 'fedcba9876543210')).toBe('7a17ecabf0f54bfa');
+  });
+
+  it('round-trips text through every mode', () => {
+    const text = 'Every mode, one sentence, any length.';
+    const key = hex('133457799bbcdff1');
+    const iv = hex('0f0e0d0c0b0a0908');
+    for (const mode of ['ECB', 'CBC', 'CFB', 'OFB', 'CTR'] as const) {
+      expect(des(des(text, { key, mode, iv }, 'encrypt'), { key, mode, iv }, 'decrypt')).toBe(text);
+    }
+  });
+});

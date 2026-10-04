@@ -44,6 +44,15 @@ import type { Step, TraceResult } from '../../../types';
 
 export type Direction = 'encrypt' | 'decrypt';
 
+/**
+ * What the message box holds.
+ *
+ * The lecture and the labs work RSA on **numbers**: M = 31 encrypts to C = 587.
+ * That is what RSA actually does, so it is the default. Text is the convenience
+ * mode: each UTF-8 byte becomes one number, which needs n above 255.
+ */
+export type MessageKind = 'numbers' | 'text';
+
 /** Small enough that the Visualize tab can factor n while you watch. */
 export const MAX_PRIME = 3000;
 
@@ -76,6 +85,38 @@ export function modInverse(a: bigint, m: bigint): bigint | null {
   return ((old_s % m) + m) % m;
 }
 
+/** One line of the extended Euclidean table: r = s × e (mod φ). */
+export interface EuclidRow {
+  remainder: bigint;
+  /** The quotient that produced this remainder from the two above. Null for the first two rows. */
+  quotient: bigint | null;
+  /** The coefficient s, with remainder ≡ s × e (mod φ). */
+  s: bigint;
+}
+
+/**
+ * The extended Euclidean algorithm as a table, the way the lecture says to
+ * compute d. Start with φ and e. Divide, keep the remainder, and carry a
+ * coefficient alongside. When the remainder reaches 1, its coefficient is d.
+ *
+ * For φ = 2668 and e = 17: 2668 = 156 × 17 + 16, then 17 = 1 × 16 + 1, and the
+ * coefficient on that 1 is 157. So d = 157, as on the slide.
+ */
+export function euclidTable(e: bigint, phi: bigint): EuclidRow[] {
+  const rows: EuclidRow[] = [
+    { remainder: phi, quotient: null, s: 0n },
+    { remainder: e, quotient: null, s: 1n },
+  ];
+  for (let guard = 0; guard < 200; guard += 1) {
+    const a = rows[rows.length - 2];
+    const b = rows[rows.length - 1];
+    if (a === undefined || b === undefined || b.remainder === 0n || b.remainder === 1n) break;
+    const quotient = a.remainder / b.remainder;
+    rows.push({ remainder: a.remainder - quotient * b.remainder, quotient, s: a.s - quotient * b.s });
+  }
+  return rows;
+}
+
 /** Modular exponentiation by squaring. Never computes m^e itself, which would not fit. */
 export function modPow(base: bigint, exponent: bigint, modulus: bigint): bigint {
   if (modulus === 1n) return 0n;
@@ -106,7 +147,7 @@ export interface KeyPair {
  * to a real condition RSA has, and a page that silently produced a broken key
  * would be teaching that the conditions are optional.
  */
-export function buildKeys(p: number, q: number, e: number): KeyPair {
+export function buildKeys(p: number, q: number, e: number, kind: MessageKind = 'text'): KeyPair {
   if (!isPrime(p)) throw new Error(`p must be prime, and ${p} is not.`);
   if (!isPrime(q)) throw new Error(`q must be prime, and ${q} is not.`);
   if (p === q) {
@@ -120,7 +161,9 @@ export function buildKeys(p: number, q: number, e: number): KeyPair {
   const eBig = BigInt(e);
 
   if (eBig <= 1n || eBig >= phi) {
-    throw new Error(`e must be between 2 and φ(n) − 1, which here is ${phi - 1n}.`);
+    throw new Error(
+      `e must satisfy 1 < e < φ(n) = (p−1)(q−1) = ${phi}, and ${e} does not. With primes this small, the usual e = 65537 is too large. Try a small prime such as 3, 5, 7 or 17.`,
+    );
   }
   if (gcd(eBig, phi) !== 1n) {
     throw new Error(
@@ -131,9 +174,9 @@ export function buildKeys(p: number, q: number, e: number): KeyPair {
   const d = modInverse(eBig, phi);
   if (d === null) throw new Error('No modular inverse for e, so no private key exists.');
 
-  if (n <= 255n) {
+  if (kind === 'text' && n <= 255n) {
     throw new Error(
-      `n = ${n} is too small: this page encrypts one byte at a time, so n must be larger than 255. Try larger primes.`,
+      `n = ${n} is too small for text: text is encrypted one byte at a time, so n must be larger than 255. Try larger primes, or switch the message to numbers.`,
     );
   }
 
@@ -145,8 +188,37 @@ export function parseNumbers(text: string): bigint[] {
   return (text.match(/\d+/g) ?? []).map((n) => BigInt(n));
 }
 
-/** The cipher, untraced. Used by the benchmark. One byte in, one number out. */
-export function rsa(text: string, keys: KeyPair, direction: Direction): string {
+/**
+ * Reads the message as integers, each of which must be less than n.
+ *
+ * RSA works modulo n, so an M of n or more does not survive: it comes back as
+ * M mod n. Lab 05 asks for M = 345 with n = 187, which is exactly this mistake.
+ */
+export function readMessageNumbers(text: string, n: bigint, what: 'M' | 'C'): bigint[] {
+  if (/[^\d\s,]/.test(text)) {
+    throw new Error(
+      `In number mode the message is whole numbers separated by spaces, such as 31 or 42 7 99. To encrypt words, set the message to text.`,
+    );
+  }
+  const numbers = parseNumbers(text);
+  for (const value of numbers) {
+    if (value >= n) {
+      throw new Error(
+        `${what} = ${value} is not less than n = ${n}. RSA works modulo n, so it would come back as ${value % n}, not ${value}. Use a smaller number, split it into blocks, or choose larger primes.`,
+      );
+    }
+  }
+  return numbers;
+}
+
+/** The cipher, untraced. Used by the benchmark. One number, or one byte, at a time. */
+export function rsa(text: string, keys: KeyPair, direction: Direction, kind: MessageKind = 'text'): string {
+  if (kind === 'numbers') {
+    const exponent = direction === 'encrypt' ? keys.e : keys.d;
+    return readMessageNumbers(text, keys.n, direction === 'encrypt' ? 'M' : 'C')
+      .map((m) => modPow(m, exponent, keys.n).toString())
+      .join(' ');
+  }
   if (direction === 'encrypt') {
     return [...new TextEncoder().encode(text)]
       .map((byte) => modPow(BigInt(byte), keys.e, keys.n).toString())
@@ -188,8 +260,55 @@ export function recoverPrivate(n: bigint, e: bigint): { p: bigint; q: bigint; ph
   return { p: factors.p, q: factors.q, phi, d, tried: factors.tried };
 }
 
-/** The cipher again, one `Step` per byte. */
-export function rsaTrace(text: string, keys: KeyPair, direction: Direction): TraceResult {
+/** Number mode, one `Step` per number, written the way the slides write it. */
+function numbersTrace(text: string, keys: KeyPair, direction: Direction): TraceResult {
+  const encrypting = direction === 'encrypt';
+  const exponent = encrypting ? keys.e : keys.d;
+  const values = readMessageNumbers(text, keys.n, encrypting ? 'M' : 'C');
+  const steps: Step[] = [];
+  const parts: string[] = [];
+  let inAt = 0;
+
+  values.forEach((value, i) => {
+    const result = modPow(value, exponent, keys.n);
+    const found = text.indexOf(value.toString(), inAt);
+    const start = found === -1 ? 0 : found;
+    inAt = start + value.toString().length;
+    const at = parts.join(' ').length + (parts.length === 0 ? 0 : 1);
+    parts.push(result.toString());
+
+    steps.push({
+      index: i,
+      title: encrypting
+        ? `C = ${value}^${keys.e} mod ${keys.n} = ${result}`
+        : `M = ${value}^${keys.d} mod ${keys.n} = ${result}`,
+      detail: encrypting
+        ? `Encrypt with the public key (n, e) = (${keys.n}, ${keys.e}): raise M = ${value} to the power e and keep the remainder after dividing by n. Anyone can do this. Only the private key d = ${keys.d} undoes it.`
+        : `Decrypt with the private key (n, d) = (${keys.n}, ${keys.d}): raise C = ${value} to the power d and keep the remainder after dividing by n. This works because e × d = ${keys.e} × ${keys.d} = ${keys.e * keys.d}, which is 1 more than a multiple of φ(n) = ${keys.phi}.`,
+      input: value.toString(),
+      output: result.toString(),
+      highlight: { start, end: inAt },
+      outputHighlight: { start: at, end: at + result.toString().length },
+      data: {
+        isNumber: true,
+        isByte: true,
+        direction,
+        value: value.toString(),
+        result: result.toString(),
+        cipher: (encrypting ? result : value).toString(),
+        e: keys.e.toString(),
+        d: keys.d.toString(),
+        n: keys.n.toString(),
+      },
+    });
+  });
+
+  return { output: parts.join(' '), steps };
+}
+
+/** The cipher again, one `Step` per number or per byte. */
+export function rsaTrace(text: string, keys: KeyPair, direction: Direction, kind: MessageKind = 'text'): TraceResult {
+  if (kind === 'numbers') return numbersTrace(text, keys, direction);
   const steps: Step[] = [];
 
   if (direction === 'encrypt') {

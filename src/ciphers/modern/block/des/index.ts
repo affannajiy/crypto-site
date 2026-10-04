@@ -14,15 +14,18 @@
  * money. Key size and cipher quality are independent, and here they are inverted.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { type Mode, des, desTrace, readIv, readKey } from './des';
+import { des, desTrace, readIv, readKey } from './des';
+import { MODE_OPTIONS, readMode } from '../../../../lib/modes';
+import { FORMAT_OPTIONS, readFormat } from '../../../../lib/blockMessage';
 import FeistelRounds from './FeistelRounds';
 
 /** Params arrive as `string | number` because they come from form controls. */
 function readOptions(p: Params) {
   return {
     key: readKey(String(p['key'] ?? '')),
-    mode: (String(p['mode'] ?? 'CBC') === 'ECB' ? 'ECB' : 'CBC') as Mode,
+    mode: readMode(p['mode']),
     iv: readIv(String(p['iv'] ?? '')),
+    format: readFormat(p['format']),
   };
 }
 
@@ -75,6 +78,43 @@ against an attack that would not be publicly discovered for another sixteen year
 
 They also **shortened the key from 64 bits to 56**, which is the other half of the
 story and the half that killed it.
+
+## Lecture note
+
+The lecture and Lab 04 give DES as a 64-bit block, 16 rounds and 16 subkeys of 48
+bits. Both are right. The lecture gives the key size as **64 bits**, and the lab
+says DES uses "keys of 48 bits". Both need care:
+
+- The key is **written** as 64 bits, but every eighth bit is a parity bit. PC-1
+  drops those 8, so the **effective key is 56 bits**. That is the number behind
+  "brute force works": 2⁵⁶ keys, not 2⁶⁴.
+- **48 bits** is the size of each **round subkey**, which PC-2 picks out of the 56.
+  It is not the size of the key.
+
+The quiz asks for "the main weakness of DES". The answer is the **key size**, and
+the section below shows why the design itself held.
+
+## Lab 04 experiments
+
+The examples above reproduce the Lab 04 experiments. Set the message format to
+**Hex**, so the message is raw bytes with no padding.
+
+**Weak keys.** For the key 0101010101010101, all 16 round keys are the same.
+Therefore encryption and decryption are the same operation, and encrypting twice
+gives the plaintext back. Load "weak key, first encryption": 0123456789ABCDEF
+becomes 617B3A0CE8F07100. Then load "encrypt the result again", and the output is
+0123456789ABCDEF. There are four weak keys and twelve semi-weak keys. The chance
+of picking one at random is about 8.8 × 10⁻¹⁶.
+
+**The complement property.** Invert every bit of the key and every bit of the
+plaintext, and you get every bit of the ciphertext inverted. The classic vector
+gives 85E813540F0AB405. The complement example gives 7A17ECABF0F54BFA, which is
+exactly its complement. An attacker can use this to test two keys for the price of
+one, so a brute force needs only 2⁵⁵ trials.
+
+**The avalanche effect.** The last example flips the final plaintext bit of the
+test vector. Compare its output with the first example: about half of the 64
+output bits change. The lecture calls this DES's strength.
 
 ## How this breaks
 
@@ -139,26 +179,52 @@ const desCipher: CipherModule = {
       kind: 'select',
       name: 'mode',
       label: 'Mode',
-      options: [
-        { value: 'CBC', label: 'CBC — each block chained to the last' },
-        { value: 'ECB', label: 'ECB — each block alone' },
-      ],
+      options: MODE_OPTIONS,
       default: 'CBC',
     },
     {
       kind: 'text',
       name: 'iv',
-      label: 'IV (16 hex digits; CBC only)',
+      label: 'IV (16 hex digits; unused in ECB, the first counter in CTR)',
       default: '0f0e0d0c0b0a0908',
       placeholder: '16 hex digits',
       randomise: { alphabet: 'hex', length: 16 },
     },
+    {
+      kind: 'select',
+      name: 'format',
+      label: 'Message format (when encrypting)',
+      options: FORMAT_OPTIONS,
+      default: 'text',
+      randomise: false,
+    },
   ],
+  textParams: { format: 'text' },
   examples: [
     {
-      label: 'The classic DES test vector',
+      label: 'The classic DES test vector: 85E813540F0AB405',
       input: '0123456789ABCDEF',
-      params: { key: '133457799bbcdff1', mode: 'ECB', iv: '0f0e0d0c0b0a0908' },
+      params: { key: '133457799bbcdff1', mode: 'ECB', iv: '0f0e0d0c0b0a0908', format: 'hex' },
+    },
+    {
+      label: 'Lab 04: weak key, first encryption',
+      input: '0123456789ABCDEF',
+      params: { key: '0101010101010101', mode: 'ECB', iv: '0f0e0d0c0b0a0908', format: 'hex' },
+    },
+    {
+      label: 'Lab 04: weak key, encrypt the result again',
+      input: '617b3a0ce8f07100',
+      params: { key: '0101010101010101', mode: 'ECB', iv: '0f0e0d0c0b0a0908', format: 'hex' },
+    },
+    {
+      label: 'Lab 04: complement key and plaintext',
+      input: 'FEDCBA9876543210',
+      params: { key: 'eccba8866443200e', mode: 'ECB', iv: '0f0e0d0c0b0a0908', format: 'hex' },
+    },
+    {
+      label: 'Avalanche: the test vector with its last bit flipped',
+      input: '0123456789ABCDEE',
+      params: { key: '133457799bbcdff1', mode: 'ECB', iv: '0f0e0d0c0b0a0908', format: 'hex' },
     },
     {
       label: 'A sentence, in CBC',

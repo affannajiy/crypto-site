@@ -61,8 +61,22 @@ Working on pairs means that the cipher stops preserving the message:
   nowhere to put them.
 - **Doubled letters get a letter wedged between them.** The rules above have
   nothing to say about a letter paired with itself, so BALLOON becomes BA LX LO ON.
-- **An odd message gets padded.** Whoever reads the decryption has to notice the
-  stray X and ignore it.
+- **An odd message gets a Z on the end.** INSTRUMENTS has eleven letters, so it
+  splits as IN ST RU ME NT SZ. Whoever reads the decryption has to notice the stray
+  Z and ignore it. If the last letter is already Z, the filler is X instead.
+
+## Lecture note
+
+The course slides use MONARCHY and INSTRUMENTS, and that is the first example
+above. The slides fill in ST → TL, ME → CL and NT → RQ and leave the rest as a quiz.
+The answers are IN → GA, RU → MZ and SZ → TX. The two quiz words give BY → DB and
+OF → HP. Try each one on the Encrypt tab, and watch the rule on Visualize.
+
+The slides call Playfair "a monoalphabetic method", and the summary then puts it
+under polyalphabetic ciphers. Neither name fits well. One square serves the whole
+message, as in a monoalphabetic cipher, but the unit is a *pair* of letters. The
+usual name is **polygraphic** (or digraphic), which is the heading it sits under
+here.
 
 This is the first real trade in the app. Caesar handed the message back
 character-perfect and could be broken in seconds. Playfair, on the other hand,
@@ -113,7 +127,7 @@ every pair an attacker can rule out is information. The same "never itself"
 property is exactly what let Bletchley Park attack Enigma with cribs, which are
 guessed pieces of the plaintext.
 
-**The padding announces itself.** Stray Xs in odd positions are visible in any
+**The padding announces itself.** Stray Xs in odd positions and a Z on the end are visible in any
 recovered plaintext, and they tell an attacker that a guess is on the right track
 long before the whole message reads cleanly.
 
@@ -150,14 +164,29 @@ const playfairCipher: CipherModule = {
   ],
   examples: [
     {
-      label: 'Wheatstone\'s own key square',
-      input: 'Meet me at the old bridge at midnight.',
+      label: 'Lecture example: INSTRUMENTS',
+      input: 'instruments',
+      params: { keyword: 'MONARCHY' },
+    },
+    {
+      label: 'Lecture quiz: BY and OF',
+      input: 'by of',
+      params: { keyword: 'MONARCHY' },
+    },
+    {
+      label: 'Lab sheet: HIDEMONEY, padded with Z',
+      input: 'HIDEMONEY',
       params: { keyword: 'MONARCHY' },
     },
     {
       label: 'A doubled letter, split by X',
-      input: 'The balloon rises at noon.',
-      params: { keyword: 'PLAYFAIR' },
+      input: 'balloon',
+      params: { keyword: 'MONARCHY' },
+    },
+    {
+      label: 'A longer message',
+      input: 'Meet me at the old bridge at midnight.',
+      params: { keyword: 'MONARCHY' },
     },
   ],
 

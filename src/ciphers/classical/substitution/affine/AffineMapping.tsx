@@ -1,8 +1,8 @@
 /**
  * The Affine mapping.
  *
- * Caesar got a disk, Vigenere a turning disk, Rail Fence a zigzag, Playfair a
- * grid. Affine is a straight line in modular arithmetic, so it gets the picture a
+ * Caesar got a two-row table, Vigenere the full table, Rail Fence a zigzag,
+ * Playfair a grid. Affine is a straight line in modular arithmetic, so it gets the picture a
  * function deserves: both alphabets side by side with a line from every input to
  * its output.
  *

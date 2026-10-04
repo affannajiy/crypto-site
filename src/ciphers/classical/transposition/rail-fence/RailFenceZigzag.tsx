@@ -1,7 +1,7 @@
 /**
  * The fence.
  *
- * Caesar and Vigenere both got a disk, because both are substitutions and the
+ * Caesar and Vigenere both got an alphabet table, because both are substitutions and the
  * question they answer is "what does this letter become". Rail Fence answers a
  * different question — "where does this letter go" — so it gets a different
  * instrument: the zigzag itself, drawn, with the message written along it.

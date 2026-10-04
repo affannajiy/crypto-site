@@ -13,6 +13,7 @@
  */
 import { useState } from 'react';
 import type { Params, Step } from '../../../types';
+import ModeChain from '../../../../components/ModeChain';
 
 interface Box {
   box: number;
@@ -77,7 +78,16 @@ function Half({ hex, tone }: { hex: string; tone: 'plain' | 'active' }) {
   );
 }
 
-export default function FeistelRounds({ steps, params }: { steps: Step[]; params: Params }) {
+export default function FeistelRounds({
+  steps,
+  params,
+  cipherName = 'DES',
+}: {
+  steps: Step[];
+  params: Params;
+  /** Names the block cipher in the mode diagram. Triple DES reuses this ladder. */
+  cipherName?: string;
+}) {
   const [blockAt, setBlockAt] = useState(0);
   const [roundAt, setRoundAt] = useState(0);
 
@@ -263,6 +273,8 @@ export default function FeistelRounds({ steps, params }: { steps: Step[]; params
           </label>
         )}
       </div>
+
+      <ModeChain steps={steps} mode={String(params['mode'] ?? block.mode)} cipherName={cipherName} />
     </div>
   );
 }

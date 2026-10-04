@@ -266,3 +266,14 @@ describe('the CipherModule wiring', () => {
     expect(caesarCipher.explainer.toLowerCase()).toContain('how this breaks');
   });
 });
+
+describe('the lecture example', () => {
+  it('shifts the toga party message by three, as the slides draw it', () => {
+    expect(caesar('meet me after the toga party', 3)).toBe('phhw ph diwhu wkh wrjd sduwb');
+  });
+
+  it('opens on that example, because the first example is the textbook one', () => {
+    expect(caesarCipher.examples?.[0]?.input).toBe('meet me after the toga party');
+    expect(caesarCipher.examples?.[0]?.params).toEqual({ shift: 3 });
+  });
+});

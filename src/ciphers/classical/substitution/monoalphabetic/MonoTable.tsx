@@ -1,9 +1,8 @@
 /**
  * The two alphabets.
  *
- * Caesar got rings because its key is a rotation. This key is not a rotation of
- * anything, so a ring would draw a shape that is not there. What the reader
- * needs is what a cipher clerk had on paper: the plain alphabet with the key
+ * Caesar's table has a shifted alphabet in its second row. This key is not a
+ * shift of anything, so the second row is a shuffle. What the reader needs is what a cipher clerk had on paper: the plain alphabet with the key
  * alphabet written under it, and the column being used right now.
  *
  * This is the only file in the cipher folder that knows React exists.

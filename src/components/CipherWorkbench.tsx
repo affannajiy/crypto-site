@@ -28,9 +28,16 @@ const DEFAULT_INPUT = 'Meet me at the old bridge at midnight.';
 
 export default function CipherWorkbench({ cipher }: { cipher: CipherModule }) {
   const baseId = useId();
+  // A page opens on its first worked example, which is the lecture's. Not every
+  // cipher takes English: the Feistel page takes binary and RSA takes numbers,
+  // so a fixed sentence would open some pages on an error.
+  const opening = cipher.examples?.find((example) => example.demonstratesError !== true);
   const [tab, setTab] = useState<Tier>(cipher.tiers[0] ?? 'encrypt');
-  const [input, setInput] = useState(DEFAULT_INPUT);
-  const [params, setParams] = useState<Params>(() => defaultParams(cipher.params));
+  const [input, setInput] = useState(opening?.input ?? DEFAULT_INPUT);
+  const [params, setParams] = useState<Params>(() => ({
+    ...defaultParams(cipher.params),
+    ...opening?.params,
+  }));
   const [direction, setDirection] = useState<Direction>('encrypt');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 

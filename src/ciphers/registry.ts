@@ -124,7 +124,8 @@ export const GROUPS: readonly {
   { id: 'fractionation', label: 'Fractionation', description: 'Split each letter into pieces, then scatter the pieces. Much harder to unpick.' },
   { id: 'mechanical', label: 'Mechanical', description: 'A machine, not a rule. The key is a physical state.' },
   { id: 'perfect-secrecy', label: 'Perfect secrecy', description: 'Provably unbreakable, and almost unusable. Both facts matter.' },
-  { id: 'symmetric', label: 'Block and stream ciphers', description: 'One shared key, real key sizes, and no known practical break.' },
+  { id: 'stream', label: 'Stream ciphers', description: 'A keystream, one byte or one bit at a time, XORed into the message. The one-time pad made practical, with its weakness inherited.' },
+  { id: 'block', label: 'Block ciphers', description: 'A whole block at a time, through a Feistel network or rounds of substitution and permutation. A mode of operation stretches one block to a message.' },
   { id: 'digests', label: 'Digests', description: 'One way only. No key, no decryption, and a fixed-size fingerprint of any input.' },
   { id: 'asymmetric', label: 'Public key', description: 'Encrypt with one key, decrypt with another.' },
   { id: 'key-exchange', label: 'Key exchange', description: 'Not a cipher. How two strangers agree on a key in public.' },
@@ -261,6 +262,17 @@ export function validateRegistry(entries: readonly { path: string; cipher: Ciphe
       }
     }
 
+    // textParams is a key fragment like an example's, so it gets the same check,
+    // plus one: a select it sets must be set to one of its options.
+    for (const [name, value] of Object.entries(cipher.textParams ?? {})) {
+      const spec = cipher.params.find((s) => s.name === name);
+      if (spec === undefined) {
+        problems.push(`${where}: textParams sets param '${name}', which this cipher does not have.`);
+      } else if (spec.kind === 'select' && !spec.options.some((o) => o.value === value)) {
+        problems.push(`${where}: textParams sets '${name}' to '${String(value)}', which is not an option.`);
+      }
+    }
+
     // The folder name is the slug, because the catalogue reads the path for the
     // cipher's group and a folder that disagrees with its module is a trap.
     const folder = path.replace(/\/index\.ts$/, '').split('/').pop();
@@ -321,12 +333,26 @@ function rankOf(cipher: CipherModule): number {
  * tested, so bringing one back costs one line here.
  */
 export const COURSE_SLUGS: readonly string[] = [
+  // Lecture 03, Lab 03: classical ciphers.
   'caesar',
   'monoalphabetic',
   'playfair',
   'vigenere',
   'rail-fence',
   'row-transposition',
+  // Lecture 03 stream cipher examples, and the Vernam pad from its notes.
+  'one-time-pad',
+  'salsa20',
+  'chacha20',
+  'rc4',
+  'a5-1',
+  // Lecture 04, Lab 04: block ciphers, with the five modes inside each.
+  'feistel',
+  'des',
+  'triple-des',
+  'aes',
+  // Lecture 05, Labs 05-07: public key.
+  'rsa',
 ];
 
 /** Every registered cipher, shown or not, ordered by family, then learning path, then name. */
@@ -351,9 +377,16 @@ if (import.meta.env.DEV) {
  * The ciphers the site shows. Everything in the UI reads this, never
  * `allCiphers`, so a hidden cipher has no page, no search hit and no row.
  */
-export const ciphers: readonly CipherModule[] = allCiphers.filter((c) =>
-  COURSE_SLUGS.includes(c.slug),
-);
+export const ciphers: readonly CipherModule[] = allCiphers
+  .filter((c) => COURSE_SLUGS.includes(c.slug))
+  // Inside a group, the lecture's order rather than the alphabet's: Salsa20
+  // before ChaCha20, and Feistel before the DES that is built on it.
+  .sort(
+    (a, b) =>
+      FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) ||
+      rankOf(a) - rankOf(b) ||
+      COURSE_SLUGS.indexOf(a.slug) - COURSE_SLUGS.indexOf(b.slug),
+  );
 
 const bySlug = new Map(ciphers.map((c) => [c.slug, c]));
 

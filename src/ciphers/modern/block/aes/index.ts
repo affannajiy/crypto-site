@@ -15,15 +15,18 @@
  * That is what the section is about.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { type Mode, aes, aesTrace, readIv, readKey } from './aes';
+import { aes, aesTrace, readIv, readKey } from './aes';
+import { MODE_OPTIONS, readMode } from '../../../../lib/modes';
+import { FORMAT_OPTIONS, readFormat } from '../../../../lib/blockMessage';
 import AesRounds from './AesRounds';
 
 /** Params arrive as `string | number` because they come from form controls. */
 function readOptions(p: Params) {
   return {
     key: readKey(String(p['key'] ?? '')),
-    mode: (String(p['mode'] ?? 'CBC') === 'ECB' ? 'ECB' : 'CBC') as Mode,
+    mode: readMode(p['mode']),
     iv: readIv(String(p['iv'] ?? '')),
+    format: readFormat(p['format']),
   };
 }
 
@@ -61,6 +64,47 @@ same shape as encryption rather than a special case.
 
 Confusion and diffusion, alternating, and neither useful alone — which is the same
 structure ADFGVX has, thirty years before Shannon named the two properties.
+
+## Modes of operation
+
+AES encrypts exactly one 16-byte block. A **mode** says how to use it on a longer
+message. The lecture follows NIST SP 800-38A and names five, and the Mode control
+above offers all five. The Visualize tab draws the chain for whichever you pick.
+
+| Mode | Strength | Weakness | Where the lecture says it is used |
+| --- | --- | --- | --- |
+| ECB | Simple and parallel | Equal plaintext blocks give equal ciphertext blocks | Legacy systems |
+| CBC | Each block depends on every block before it | Encryption is sequential, so slower | TLS, BitLocker, FileVault, VPNs |
+| CFB | Encrypts a stream as it arrives | A bit error also garbles the next block | Secure voice, VM disks |
+| OFB | Keystream can be computed ahead of time | No integrity: flip a ciphertext bit and the same plaintext bit flips | Noisy channels, remote access |
+| CTR | Fast, and every block is independent | No integrity, and a counter must never repeat under one key | SSD encryption, network encryption |
+
+Two things the table hides are worth saying out loud. First, **CFB, OFB and CTR
+never run AES backwards**, not even to decrypt. They use AES only to make a
+keystream and XOR it in, which turns a block cipher into a stream cipher. That is
+why they need no padding: try a 5-letter message in CTR and the ciphertext is 5
+bytes. Second, the lecture table lists OFB as "self-synchronizing". That is CFB.
+OFB does not recover from a lost bit at all, because its keystream never sees the
+ciphertext. CFB recovers after one block, which is what self-synchronising means.
+
+The tests check all five against the NIST SP 800-38A vectors, and CTR against
+WebCrypto as well.
+
+## Lecture note
+
+The lecture says the round function runs "9, 11 or 13 rounds" and then adds a final
+round. That is the same as 10, 12 or 14 rounds in total, which is the number in the
+summary table and the number on this page.
+
+The lecture calls the MixColumns multiplier a "circulant MD5 matrix". The term is
+**MDS matrix** (maximum distance separable). MD5 is a hash function, and it has
+nothing to do with AES.
+
+The lecture's worked examples are pinned in the tests, so this page is checked
+against them. The S-box sends **45 to 6E**: row 4, column 5. MixColumns sends the
+column 87 6E 46 A6 to **47 37 94 ED**. The first output byte is
+(02·87) ⊕ (03·6E) ⊕ 46 ⊕ A6 = 47. Multiplying by 02 is a left shift, then an XOR
+with 1B if the top bit was 1. Multiplying by 03 is (02·x) ⊕ x.
 
 ## About this implementation
 
@@ -149,26 +193,62 @@ const aesCipher: CipherModule = {
       kind: 'select',
       name: 'mode',
       label: 'Mode',
-      options: [
-        { value: 'CBC', label: 'CBC — each block chained to the last' },
-        { value: 'ECB', label: 'ECB — each block alone (see the penguin)' },
-      ],
+      options: MODE_OPTIONS,
       default: 'CBC',
     },
     {
       kind: 'text',
       name: 'iv',
-      label: 'IV (32 hex digits; CBC only)',
+      label: 'IV (32 hex digits; unused in ECB, the first counter in CTR)',
       default: '0f0e0d0c0b0a09080706050403020100',
       placeholder: '32 hex digits',
       randomise: { alphabet: 'hex', length: 32 },
     },
+    {
+      kind: 'select',
+      name: 'format',
+      label: 'Message format (when encrypting)',
+      options: FORMAT_OPTIONS,
+      default: 'text',
+      randomise: false,
+    },
   ],
+  textParams: { format: 'text' },
   examples: [
     {
       label: 'A sentence, in CBC',
       input: 'Meet me at the old bridge at midnight.',
       params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'CBC', iv: '0f0e0d0c0b0a09080706050403020100' },
+    },
+    {
+      label: 'FIPS-197 Appendix C.1: 69C4E0D86A7B0430…',
+      input: '00112233445566778899aabbccddeeff',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'ECB', iv: '0f0e0d0c0b0a09080706050403020100', format: 'hex' },
+    },
+    {
+      label: 'ECB: two equal blocks, two equal ciphertexts',
+      input: 'YELLOW SUBMARINEYELLOW SUBMARINE',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'ECB', iv: '0f0e0d0c0b0a09080706050403020100' },
+    },
+    {
+      label: 'CTR: no padding, so 5 letters give 5 bytes',
+      input: 'Hello',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'CTR', iv: 'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff' },
+    },
+    {
+      label: 'CFB: a stream mode that feeds back ciphertext',
+      input: 'Cipher feedback mode.',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'CFB', iv: '0f0e0d0c0b0a09080706050403020100' },
+    },
+    {
+      label: 'OFB: a keystream that never sees the message',
+      input: 'Output feedback mode.',
+      params: { key: '000102030405060708090a0b0c0d0e0f', mode: 'OFB', iv: '0f0e0d0c0b0a09080706050403020100' },
+    },
+    {
+      label: 'AES-256: fourteen rounds',
+      input: 'Sixteen bytes..!',
+      params: { key: '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f', mode: 'ECB', iv: '0f0e0d0c0b0a09080706050403020100' },
     },
     {
       label: 'One block, in ECB, so the rounds are the whole story',

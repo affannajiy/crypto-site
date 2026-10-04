@@ -67,6 +67,17 @@ substitution-permutation network. AES does this ten to fourteen times. The idea
 below the zigzag is still running in the encryption on every phone, except that it
 never runs alone.
 
+## Lecture note
+
+The lecture example is "meet me after the toga party" at depth 2, which gives
+MEMATRHTGPRYETEFETEOAAT. That is the first example above. The quiz asks for the
+same text at depth 4, and for the HELLOWORLD diagram, which reads HOLELWRDLO.
+
+Lab 03 writes ILOVEIAS on 3 rails and gives the ciphertext as IELVASOI. The rails
+actually read I·E, L·V·I·S and O·A, so the correct ciphertext is **IELVISOA**. The
+lab's answer swaps two letters. Load the lab example and check each rail on the
+Visualize tab.
+
 ## How this breaks
 
 **Frequency analysis stops working, and that is not good news.** This is the
@@ -128,6 +139,21 @@ const railFenceCipher: CipherModule = {
       label: 'The textbook example, depth 2',
       input: 'meetmeafterthetogaparty',
       params: { rails: 2 },
+    },
+    {
+      label: 'Lecture quiz: the same text at depth 4',
+      input: 'meetmeafterthetogaparty',
+      params: { rails: 4 },
+    },
+    {
+      label: 'Lecture quiz diagram: HELLOWORLD, 3 rails',
+      input: 'HELLOWORLD',
+      params: { rails: 3 },
+    },
+    {
+      label: 'Lab sheet: ILOVEIAS, 3 rails',
+      input: 'ILOVEIAS',
+      params: { rails: 3 },
     },
     {
       label: 'Three rails',

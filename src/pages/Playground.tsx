@@ -1,7 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TECHNIQUES, ciphers, techniqueOf } from '../ciphers/registry';
-import { defaultParams } from '../ciphers/params';
+import { GROUPS, TECHNIQUES, ciphers, groupLabelOf, techniqueOf } from '../ciphers/registry';
+import { textStartParams } from '../ciphers/params';
 import type { CipherModule, ParamSpec, Params } from '../ciphers/types';
 import ParamControls from '../components/ParamControls';
 import { useCipherRun, type Direction } from '../components/useCipherRun';
@@ -22,12 +22,13 @@ import { useCipherRun, type Direction } from '../components/useCipherRun';
  * One direction applies to every row. Decrypting is useful here: paste a
  * ciphertext and see which row reads as English. Mixing directions across rows
  * would be two unrelated runs sharing a text box.
+ *
+ * Every shown cipher has a row, in the order of the course: the classical
+ * techniques, then the pad, the stream ciphers, the block ciphers and RSA. A row
+ * starts on `textStartParams`, the textbook key with the cipher's own
+ * `textParams` on top, so Feistel and RSA read the sentence instead of
+ * expecting binary or numbers.
  */
-
-/** A cipher's starting key: its first worked example over its defaults. */
-function startingParams(cipher: CipherModule): Params {
-  return { ...defaultParams(cipher.params), ...(cipher.examples?.[0]?.params ?? {}) };
-}
 
 /** The key in one line, for the collapsed row: "Shift 3", "Keyword MONARCHY". */
 function keySummary(specs: readonly ParamSpec[], values: Params): string {
@@ -47,13 +48,17 @@ function Row({
   cipher,
   input,
   direction,
+  onDecrypt,
 }: {
   cipher: CipherModule;
   input: string;
   direction: Direction;
+  /** Puts this row's ciphertext in the message box and flips every row to decrypt. */
+  onDecrypt: (ciphertext: string) => void;
 }) {
-  const [params, setParams] = useState<Params>(() => startingParams(cipher));
+  const [params, setParams] = useState<Params>(() => textStartParams(cipher));
   const [copied, setCopied] = useState(false);
+  const copyButton = useRef<HTMLButtonElement>(null);
   const run = useCipherRun(cipher, input, params, direction);
 
   useEffect(() => {
@@ -94,12 +99,20 @@ function Row({
 
       {run.status === 'running' && <p className="text-sm text-ink-subtle">Working…</p>}
 
-      {run.status === 'error' && (
-        <div role="status" className="rounded border border-marker-mid bg-marker-wash px-3 py-2 text-sm">
-          <p className="font-medium text-ink">This one will not run with this key.</p>
-          <p className="mt-1 text-ink-muted">{run.message}</p>
-        </div>
-      )}
+      {/* Decrypting, most rows are expected to fail: a Caesar ciphertext is not
+          hex, and an AES ciphertext is not letters. That is a quiet line, not
+          an orange box, because nothing is wrong. */}
+      {run.status === 'error' &&
+        (direction === 'decrypt' ? (
+          <p role="status" className="text-sm text-ink-subtle">
+            Not a ciphertext this one can read. {run.message}
+          </p>
+        ) : (
+          <div role="status" className="rounded border border-marker-mid bg-marker-wash px-3 py-2 text-sm">
+            <p className="font-medium text-ink">This one will not run with this key.</p>
+            <p className="mt-1 text-ink-muted">{run.message}</p>
+          </div>
+        ))}
 
       {run.status === 'done' && (
         <div className="flex items-start gap-2">
@@ -108,15 +121,33 @@ function Row({
           <output className="block min-h-6 min-w-0 flex-1 wrap-anywhere font-mono text-sm text-ink">
             {output === '' ? <span className="text-ink-subtle">(empty)</span> : output}
           </output>
-          <button
-            type="button"
-            className="cl-button shrink-0"
-            onClick={copy}
-            disabled={output === ''}
-            aria-live="polite"
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </button>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              className="cl-button"
+              ref={copyButton}
+              onClick={copy}
+              disabled={output === ''}
+              aria-live="polite"
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            {direction === 'encrypt' && (
+              <button
+                type="button"
+                className="cl-button"
+                onClick={() => {
+                  onDecrypt(output);
+                  // This button leaves with encrypt mode. Keep focus in the row,
+                  // which now shows the decryption, instead of dropping it to the page.
+                  copyButton.current?.focus();
+                }}
+                disabled={output === ''}
+              >
+                Decrypt this
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -130,7 +161,7 @@ function Row({
             <button
               type="button"
               className="cl-button"
-              onClick={() => setParams(startingParams(cipher))}
+              onClick={() => setParams(textStartParams(cipher))}
             >
               Back to the textbook key
             </button>
@@ -152,15 +183,27 @@ export default function Playground() {
   // if one is ever shown.
   const reversible = ciphers.filter((cipher) => cipher.oneWay !== true);
 
-  const sections = TECHNIQUES.map((technique) => ({
-    label: technique.label,
-    description: technique.description,
-    ciphers: reversible.filter((cipher) => techniqueOf(cipher.slug) === technique.id),
-  }));
-  const other = reversible.filter((cipher) => techniqueOf(cipher.slug) === undefined);
-  if (other.length > 0) {
-    sections.push({ label: 'Other', description: '', ciphers: other });
-  }
+  // The classical techniques first, under the lecture's two headings. Then
+  // every other group in catalogue order: the pad, stream, block, public key.
+  const sections = [
+    ...TECHNIQUES.map((technique) => ({
+      label: technique.label,
+      description: technique.description,
+      ciphers: reversible.filter((cipher) => techniqueOf(cipher.slug) === technique.id),
+    })),
+    ...GROUPS.map((group) => ({
+      label: group.label,
+      description: group.description,
+      ciphers: reversible.filter(
+        (cipher) => techniqueOf(cipher.slug) === undefined && groupLabelOf(cipher.slug) === group.label,
+      ),
+    })),
+  ];
+
+  const decryptThis = (ciphertext: string) => {
+    setInput(ciphertext);
+    setDirection('decrypt');
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,10 +212,16 @@ export default function Playground() {
           One message, every cipher
         </h1>
         <p className="cl-prose text-ink-muted">
-          Type a message once and every cipher runs on it. In this case, the substitutions change
+          Type a message once and every cipher in the course runs on it. The substitutions change
           the letters and leave them in place, whereas the transpositions keep the letters and
-          move them. Each row starts on the textbook key, and &ldquo;Change the key&rdquo; opens
-          the controls to try another one.
+          move them. From the stream ciphers onwards the output is no longer letters at all: the
+          stream and block ciphers give bytes, written in hex, Feistel gives bits, and RSA gives
+          one number per character.
+        </p>
+        <p className="cl-prose text-ink-muted">
+          Each row starts on the textbook key, and &ldquo;Change the key&rdquo; opens the controls
+          to try another one. &ldquo;Decrypt this&rdquo; puts a row&rsquo;s ciphertext in the box
+          and switches every row to decrypt, so you can see that only its own cipher reads it.
         </p>
       </header>
 
@@ -210,8 +259,8 @@ export default function Playground() {
       {direction === 'decrypt' && (
         <p role="status" className="cl-prose text-sm text-ink-muted">
           Paste a ciphertext above. At most one row can be the right cipher with the right key, so
-          every other row is expected to be nonsense. That is the whole point, whereby the row
-          that reads as English reveals which cipher was used.
+          every other row is expected to be nonsense or to refuse the input. That is the whole
+          point, whereby the row that reads as English reveals which cipher was used.
         </p>
       )}
 
@@ -233,7 +282,13 @@ export default function Playground() {
             </div>
             <ul className="flex flex-col gap-3">
               {section.ciphers.map((cipher) => (
-                <Row key={cipher.slug} cipher={cipher} input={input} direction={direction} />
+                <Row
+                  key={cipher.slug}
+                  cipher={cipher}
+                  input={input}
+                  direction={direction}
+                  onDecrypt={decryptThis}
+                />
               ))}
             </ul>
           </section>

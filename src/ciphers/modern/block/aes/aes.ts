@@ -3,9 +3,8 @@
  *
  * **Why this is hand-written and not WebCrypto.**
  *
- * Every other modern primitive on this site should use the browser's own
- * implementation, and CLAUDE.md says so. AES is the exception, and it is not a
- * shortcut: `crypto.subtle.encrypt` returns a ciphertext and nothing else. It
+ * The first plan was the browser's own implementation. CLAUDE.md records why it
+ * was dropped: `crypto.subtle.encrypt` returns a ciphertext and nothing else. It
  * cannot show a round. It cannot show the state matrix after SubBytes. It cannot
  * show the key schedule. The entire purpose of this application is the middle of
  * the algorithm, and the browser API deliberately hides the middle.
@@ -43,11 +42,22 @@
  *
  * Plain TypeScript. Imports nothing from React and touches no DOM.
  */
-import type { Step, TraceResult } from '../../../types';
+import type { TraceResult } from '../../../types';
 import { fromHex, toHex } from '../../../../lib/format';
+import {
+  type MessageFormat,
+  blockRanges as blockRangesOf,
+  runMessage,
+  traceMessage,
+} from '../../../../lib/blockMessage';
+import {
+  blocksOf as blocksOfSize,
+  pad as padBytes,
+  unpad as unpadBytes,
+} from '../../../../lib/modes';
 
-export type Direction = 'encrypt' | 'decrypt';
-export type Mode = 'ECB' | 'CBC';
+export type { Direction, Mode } from '../../../../lib/modes';
+import type { Direction, Mode } from '../../../../lib/modes';
 
 export const BLOCK_BYTES = 16;
 
@@ -294,41 +304,30 @@ export function decryptBlock(block: Uint8Array, schedule: Uint8Array[]): { out: 
   return { out: state, trace };
 }
 
+const PADDING_ERROR =
+  'The padding is not valid, which almost always means the key, the IV or the mode is wrong. (A real system must never tell an attacker this — see the explainer on padding oracles.)';
+
 /** PKCS#7: pad to a whole block, always adding at least one byte. */
 export function pad(bytes: Uint8Array): Uint8Array {
-  const extra = BLOCK_BYTES - (bytes.length % BLOCK_BYTES);
-  const out = new Uint8Array(bytes.length + extra);
-  out.set(bytes);
-  out.fill(extra, bytes.length);
-  return out;
+  return padBytes(bytes, BLOCK_BYTES);
 }
 
 /** Removes PKCS#7 padding, or returns null when it is not valid. */
 export function unpad(bytes: Uint8Array): Uint8Array | null {
-  if (bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) return null;
-  const extra = bytes[bytes.length - 1] ?? 0;
-  if (extra < 1 || extra > BLOCK_BYTES || extra > bytes.length) return null;
-  for (let i = bytes.length - extra; i < bytes.length; i += 1) {
-    if (bytes[i] !== extra) return null;
-  }
-  return bytes.slice(0, bytes.length - extra);
+  return unpadBytes(bytes, BLOCK_BYTES);
 }
 
 /** Cuts a byte array into 16-byte blocks. */
 export function blocksOf(bytes: Uint8Array): Uint8Array[] {
-  const out: Uint8Array[] = [];
-  for (let i = 0; i < bytes.length; i += BLOCK_BYTES) out.push(bytes.slice(i, i + BLOCK_BYTES));
-  return out;
-}
-
-function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
-  return a.map((byte, i) => byte ^ (b[i] ?? 0));
+  return blocksOfSize(bytes, BLOCK_BYTES);
 }
 
 export interface Options {
   key: Uint8Array;
   mode: Mode;
   iv: Uint8Array;
+  /** What the message box holds when encrypting. Defaults to text. */
+  format?: MessageFormat;
 }
 
 /** Reads a hex key of 16, 24 or 32 bytes, and says clearly when it cannot. */
@@ -345,7 +344,7 @@ export function readKey(hex: string): Uint8Array {
   return bytes;
 }
 
-/** Reads a 16-byte IV. Only CBC uses it, and ECB's page says why it has none. */
+/** Reads a 16-byte IV, or the initial counter block in CTR. ECB ignores it. */
 export function readIv(hex: string): Uint8Array {
   const cleaned = hex.replace(/\s+/g, '');
   if (cleaned === '') return new Uint8Array(BLOCK_BYTES);
@@ -356,64 +355,27 @@ export function readIv(hex: string): Uint8Array {
   return bytes;
 }
 
+function messageOptions(options: Options) {
+  const schedule = expandKey(options.key);
+  return {
+    mode: options.mode,
+    iv: options.iv,
+    blockBytes: BLOCK_BYTES,
+    encryptBlock: (block: Uint8Array) => encryptBlock(block, schedule),
+    decryptBlock: (block: Uint8Array) => decryptBlock(block, schedule),
+    paddingError: PADDING_ERROR,
+    format: options.format ?? 'text',
+  };
+}
+
 /** The cipher over a whole message, untraced. Used by the benchmark. */
 export function aes(text: string, options: Options, direction: Direction): string {
-  const schedule = expandKey(options.key);
-
-  if (direction === 'encrypt') {
-    const padded = pad(new TextEncoder().encode(text));
-    let previous = options.iv;
-    let out = '';
-    for (const block of blocksOf(padded)) {
-      const input = options.mode === 'CBC' ? xor(block, previous) : block;
-      const { out: cipher } = encryptBlock(input, schedule);
-      previous = cipher;
-      out += toHex(cipher);
-    }
-    return out;
-  }
-
-  const bytes = fromHex(text.replace(/\s+/g, ''));
-  if (bytes === null || bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) {
-    throw new Error(
-      'A ciphertext is a whole number of 16-byte blocks written in hex — 32 hex digits per block.',
-    );
-  }
-
-  let previous = options.iv;
-  const plain = new Uint8Array(bytes.length);
-  blocksOf(bytes).forEach((block, i) => {
-    const { out: decrypted } = decryptBlock(block, schedule);
-    const result = options.mode === 'CBC' ? xor(decrypted, previous) : decrypted;
-    previous = block;
-    plain.set(result, i * BLOCK_BYTES);
-  });
-
-  const stripped = unpad(plain);
-  if (stripped === null) {
-    throw new Error(
-      'The padding is not valid, which almost always means the key, the IV or the mode is wrong. (A real system must never tell an attacker this — see the explainer on padding oracles.)',
-    );
-  }
-  return new TextDecoder().decode(stripped);
+  return runMessage(text, messageOptions(options), direction);
 }
 
 /** Where in the original text each block's bytes came from, so a step can point at it. */
 export function blockRanges(text: string, blockCount: number): { start: number; end: number }[] {
-  const encoder = new TextEncoder();
-  const ranges: { start: number; end: number }[] = [];
-  let byteAt = 0;
-  let charAt = 0;
-  for (let b = 0; b < blockCount; b += 1) {
-    const start = charAt;
-    const limit = (b + 1) * BLOCK_BYTES;
-    while (charAt < text.length && byteAt < limit) {
-      byteAt += encoder.encode(text.charAt(charAt)).length;
-      charAt += 1;
-    }
-    ranges.push({ start, end: Math.max(start, charAt) });
-  }
-  return ranges;
+  return blockRangesOf(text, blockCount, BLOCK_BYTES);
 }
 
 /**
@@ -424,103 +386,25 @@ export function blockRanges(text: string, blockCount: number): { start: number; 
  * `Step.data`, and the Visualize tab scrubs through them.
  */
 export function aesTrace(text: string, options: Options, direction: Direction): TraceResult {
-  const schedule = expandKey(options.key);
   const bits = options.key.length * 8;
   const rounds = roundsFor(options.key.length);
-  const steps: Step[] = [];
 
-  const asData = (trace: RoundTrace[]) =>
-    trace.map((round) => ({
-      round: round.round,
-      kind: round.kind,
-      before: toHex(round.before),
-      afterSub: round.afterSub === undefined ? null : toHex(round.afterSub),
-      afterShift: round.afterShift === undefined ? null : toHex(round.afterShift),
-      afterMix: round.afterMix === undefined ? null : toHex(round.afterMix),
-      roundKey: toHex(round.roundKey),
-      after: toHex(round.after),
-    }));
-
-  if (direction === 'encrypt') {
-    const padded = pad(new TextEncoder().encode(text));
-    const blocks = blocksOf(padded);
-    const ranges = blockRanges(text, blocks.length);
-    let previous = options.iv;
-    let output = '';
-
-    blocks.forEach((block, i) => {
-      const chained = options.mode === 'CBC' ? xor(block, previous) : block;
-      const { out, trace } = encryptBlock(chained, schedule);
-      const at = output.length;
-      output += toHex(out);
-      previous = out;
-
-      steps.push({
-        index: i,
-        title: `Block ${i + 1} → ${toHex(out).slice(0, 8)}…`,
-        detail: `${bits}-bit key, so ${rounds} rounds${options.mode === 'CBC' ? `, and in CBC mode this block is XORed with the previous ciphertext block before any of them` : ', and in ECB mode this block is encrypted entirely on its own — which is the problem with ECB'}. Each round does SubBytes, ShiftRows, MixColumns and AddRoundKey; the last round leaves out MixColumns, which is what makes decryption the same shape as encryption rather than a special case.`,
-        output: toHex(out),
-        highlight: ranges[i] ?? { start: 0, end: 0 },
-        outputHighlight: { start: at, end: at + BLOCK_BYTES * 2 },
-        data: {
-          isBlock: true,
-          block: i,
-          mode: options.mode,
-          bits,
-          rounds,
-          input: toHex(block),
-          chained: toHex(chained),
-          cipher: toHex(out),
-          trace: asData(trace),
-        },
-      });
-    });
-
-    return { output, steps };
-  }
-
-  const bytes = fromHex(text.replace(/\s+/g, ''));
-  if (bytes === null || bytes.length === 0 || bytes.length % BLOCK_BYTES !== 0) {
-    throw new Error(
-      'A ciphertext is a whole number of 16-byte blocks written in hex — 32 hex digits per block.',
-    );
-  }
-
-  let previous = options.iv;
-  const plain = new Uint8Array(bytes.length);
-  const cipherBlocks = blocksOf(bytes);
-
-  cipherBlocks.forEach((block, i) => {
-    const { out, trace } = decryptBlock(block, schedule);
-    const result = options.mode === 'CBC' ? xor(out, previous) : out;
-    previous = block;
-    plain.set(result, i * BLOCK_BYTES);
-
-    steps.push({
-      index: i,
-      title: `Block ${i + 1} → ${toHex(result).slice(0, 8)}…`,
-      detail: `Each round is run backwards: InvShiftRows, InvSubBytes, AddRoundKey, InvMixColumns.${options.mode === 'CBC' ? ' Then the previous ciphertext block is XORed back out, which is what CBC chaining costs to undo.' : ''}`,
-      output: toHex(result),
-      highlight: { start: i * BLOCK_BYTES * 2, end: (i + 1) * BLOCK_BYTES * 2 },
-      data: {
-        isBlock: true,
-        block: i,
-        mode: options.mode,
-        bits,
-        rounds,
-        input: toHex(block),
-        cipher: toHex(result),
-        trace: asData(trace),
-      },
-    });
+  return traceMessage(text, messageOptions(options), direction, {
+    detail: (block) =>
+      block.ran === 'encrypt'
+        ? `${bits}-bit key, so ${rounds} rounds. Each round does SubBytes, ShiftRows, MixColumns and AddRoundKey; the last round leaves out MixColumns, which is what makes decryption the same shape as encryption rather than a special case.`
+        : 'Each round is run backwards: InvShiftRows, InvSubBytes, AddRoundKey, InvMixColumns.',
+    traceData: (trace: RoundTrace[]) =>
+      trace.map((round) => ({
+        round: round.round,
+        kind: round.kind,
+        before: toHex(round.before),
+        afterSub: round.afterSub === undefined ? null : toHex(round.afterSub),
+        afterShift: round.afterShift === undefined ? null : toHex(round.afterShift),
+        afterMix: round.afterMix === undefined ? null : toHex(round.afterMix),
+        roundKey: toHex(round.roundKey),
+        after: toHex(round.after),
+      })),
+    extra: { bits, rounds },
   });
-
-  const stripped = unpad(plain);
-  if (stripped === null) {
-    throw new Error(
-      'The padding is not valid, which almost always means the key, the IV or the mode is wrong. (A real system must never tell an attacker this — see the explainer on padding oracles.)',
-    );
-  }
-
-  return { output: new TextDecoder().decode(stripped), steps };
 }

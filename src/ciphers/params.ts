@@ -20,6 +20,19 @@ export function defaultParams(specs: readonly ParamSpec[]): Params {
   return values;
 }
 
+/**
+ * The key a cipher starts on when it must read an English message: its
+ * defaults, then its first example (the textbook key), then its `textParams`.
+ * The Playground uses this, and a test runs every shown cipher through it.
+ */
+export function textStartParams(cipher: CipherModule): Params {
+  return {
+    ...defaultParams(cipher.params),
+    ...(cipher.examples?.[0]?.params ?? {}),
+    ...(cipher.textParams ?? {}),
+  };
+}
+
 /** A uniform integer in [min, max], from the platform's CSPRNG. */
 function randomInt(min: number, max: number): number {
   const span = max - min + 1;
@@ -48,7 +61,7 @@ export function canRandomise(spec: ParamSpec): boolean {
     case 'number':
       return true;
     case 'select':
-      return spec.options.length > 1;
+      return spec.randomise !== false && spec.options.length > 1;
     case 'text':
       return spec.randomise !== undefined;
     case 'bytes':
@@ -62,6 +75,7 @@ export function randomValue(spec: ParamSpec): string | number | undefined {
     case 'number':
       return randomInt(spec.min, spec.max);
     case 'select': {
+      if (spec.randomise === false) return undefined;
       const option = spec.options[randomInt(0, spec.options.length - 1)];
       return option?.value;
     }

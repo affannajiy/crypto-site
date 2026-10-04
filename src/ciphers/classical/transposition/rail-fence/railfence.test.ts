@@ -332,3 +332,18 @@ describe('the textbook example', () => {
     expect(railFence('meetmeafterthetogaparty', 2).toUpperCase()).toBe('MEMATRHTGPRYETEFETEOAAT');
   });
 });
+
+describe('the lecture quiz and the lab sheet', () => {
+  it('answers the depth-4 quiz on the toga party message', () => {
+    expect(railFence('meetmeafterthetogaparty', 4)).toBe('mahpeefteaaemtrtgryteot');
+  });
+
+  it('reads the HELLOWORLD diagram off by rails', () => {
+    expect(railFence('HELLOWORLD', 3)).toBe('HOLELWRDLO');
+  });
+
+  it('gives IELVISOA for the lab sheet, not the IELVASOI the sheet prints', () => {
+    expect(railFence('ILOVEIAS', 3)).toBe('IELVISOA');
+    expect(railFence('IELVISOA', 3, 'decrypt')).toBe('ILOVEIAS');
+  });
+});

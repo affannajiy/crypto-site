@@ -397,3 +397,14 @@ describe('the textbook example', () => {
     );
   });
 });
+
+describe('the lecture and lab examples', () => {
+  it('reproduces the slide table example with LEMON', () => {
+    expect(vigenere('ATTACKATDAWN', 'LEMON')).toBe('LXFOPVEFRNHR');
+  });
+
+  it('reproduces the Lab 03 message, and keeps its case', () => {
+    expect(vigenere('ThisisIASlab', 'LEMON')).toBe('ElugvdMMGylf');
+    expect(vigenere('ElugvdMMGylf', 'LEMON', 'decrypt')).toBe('ThisisIASlab');
+  });
+});

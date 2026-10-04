@@ -2,7 +2,8 @@
  * A very small markdown renderer for cipher explainers.
  *
  * It covers exactly what the explainers use: `##` headings, paragraphs, `-`
- * lists, **bold**, *italic*, `inline code`, and four-space-indented code blocks.
+ * lists, **bold**, *italic*, `inline code`, four-space-indented code blocks, and
+ * pipe tables.
  * Nothing else. When an explainer needs more, add it here rather than reaching for
  * a dependency.
  *
@@ -93,14 +94,63 @@ export default function Markdown({ source }: { source: string }) {
           );
         }
 
-        if (lines.every((line) => line.startsWith('- '))) {
+        // A pipe table: a header row, a |---| rule, then body rows. The lecture
+        // compares things in tables, so the explainers that follow it do too.
+        // It scrolls inside its card at narrow widths, like a diagram.
+        if (lines.length >= 2 && lines.every((line) => line.trim().startsWith('|'))) {
+          const cells = (line: string) =>
+            line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+          const [head = '', , ...body] = lines;
+          return (
+            <div key={i} className="w-full overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    {cells(head).map((cell, j) => (
+                      <th
+                        key={j}
+                        scope="col"
+                        className="border border-line bg-sunken px-2 py-1 text-left font-semibold text-ink-strong"
+                      >
+                        {renderInline(cell, `t${i}-h${j}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {body.map((row, r) => (
+                    <tr key={r}>
+                      {cells(row).map((cell, j) => (
+                        <td key={j} className="border border-line px-2 py-1 align-top text-ink-muted">
+                          {renderInline(cell, `t${i}-${r}-${j}`)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+
+        // A list item may wrap onto indented continuation lines, which join the
+        // item above. Without this a wrapped list printed as one paragraph.
+        if (
+          lines[0]?.startsWith('- ') === true &&
+          lines.every((line) => line.startsWith('- ') || line.startsWith('  '))
+        ) {
+          const items: string[] = [];
+          for (const line of lines) {
+            if (line.startsWith('- ')) items.push(line.slice(2));
+            else items[items.length - 1] += ` ${line.trim()}`;
+          }
           return (
             // Padding, not margin: `.cl-prose` sets width to 100%, and a left
             // margin lands outside that width, so `ml-5` pushed the list 20px
             // past the column and gave the page a horizontal scrollbar at 320px.
             <ul key={i} className="cl-prose flex list-disc flex-col gap-2 pl-5 text-ink-muted">
-              {lines.map((line, j) => (
-                <li key={j}>{renderInline(line.slice(2), `l${i}-${j}`)}</li>
+              {items.map((item, j) => (
+                <li key={j}>{renderInline(item, `l${i}-${j}`)}</li>
               ))}
             </ul>
           );

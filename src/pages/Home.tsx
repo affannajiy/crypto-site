@@ -95,12 +95,19 @@ export default function Home() {
           See how ciphers actually work
         </h1>
         <p className="cl-prose text-ink-muted">
-          CryptoLab covers the classical ciphers in two halves. Firstly, substitution replaces
-          each letter with another, which hides what the letters are. This property is called
-          confusion. Secondly, transposition keeps the letters but moves them, which hides where
-          they are. This property is called diffusion. Each page encrypts a message and then
-          lists every step the algorithm took to get there. Where a cipher can be broken, the
-          page breaks it, and where it can be drawn, the page shows it move.
+          CryptoLab follows the course from pen and paper to public keys. The classical ciphers
+          come in two halves. Substitution replaces each letter with another, which hides what
+          the letters are: this is confusion. Transposition keeps the letters but moves them,
+          which hides where they are: this is diffusion. Then come the stream ciphers, which XOR
+          a computed keystream into the message, and the block ciphers, from the Feistel structure
+          through DES and Triple DES to AES, with all five modes of operation. Last is RSA, with
+          its digital signatures.
+        </p>
+        <p className="cl-prose text-ink-muted">
+          Each page encrypts a message and then lists every step the algorithm took to get there.
+          Every first example is the one from the lecture or the lab sheet, so you can check your
+          working against it. Where a cipher can be broken, the page breaks it, and where it can be
+          drawn, the page shows it move.
         </p>
       </header>
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canRandomise, defaultParams, randomKeyFor, randomValue } from './params';
+import { canRandomise, defaultParams, randomKeyFor, randomValue, textStartParams } from './params';
 import type { ParamSpec } from './types';
-import { allCiphers as ciphers } from './registry';
+import { allCiphers as ciphers, ciphers as shown } from './registry';
 
 describe('randomValue', () => {
   it('stays inside a number param’s own range', () => {
@@ -54,11 +54,32 @@ describe('randomKeyFor against the live registry', () => {
     // A "randomise" button that hands the cipher something it throws on would be
     // worse than no button, and the shape of a valid key is declared per param —
     // so this is the test that catches a length that disagrees with the cipher.
+    // The message is the cipher's own first example, because not every input is
+    // text: the Feistel page takes binary and RSA's number mode takes integers.
     for (const cipher of ciphers) {
+      const example = cipher.examples?.find((e) => e.demonstratesError !== true);
+      const message = example?.input ?? 'Meet me at dawn.';
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const params = randomKeyFor(cipher, defaultParams(cipher.params));
-        expect(() => cipher.encrypt('Meet me at dawn.', params)).not.toThrow();
+        expect(() => cipher.encrypt(message, params)).not.toThrow();
       }
     }
+  });
+});
+
+describe('textStartParams', () => {
+  // The Playground's own sentence. Every shown cipher has a row for it.
+  const SENTENCE = 'The quick brown fox jumps over the lazy dog';
+  const letters = (s: string) => s.toUpperCase().replace(/[^A-Z]/g, '');
+
+  it.each(shown.map((c) => [c.slug, c] as const))('lets %s encrypt and decrypt an English sentence', async (_, cipher) => {
+    const params = textStartParams(cipher);
+    const encrypted = await cipher.encrypt(SENTENCE, params);
+    expect(encrypted.output).not.toBe('');
+    if (cipher.decrypt === undefined) return;
+    const decrypted = await cipher.decrypt(encrypted.output, params);
+    // Classical ciphers fold case, drop spaces, merge J into I or add filler,
+    // so compare the opening letters only.
+    expect(letters(decrypted.output).startsWith('THEQUICK')).toBe(true);
   });
 });

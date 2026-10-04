@@ -18,6 +18,7 @@
  */
 import { useState } from 'react';
 import type { Params, Step } from '../../../types';
+import ModeChain from '../../../../components/ModeChain';
 
 interface RoundData {
   round: number;
@@ -234,55 +235,7 @@ export default function AesRounds({ steps, params }: { steps: Step[]; params: Pa
         )}
       </div>
 
-      <section aria-labelledby="aes-mode" className="flex flex-col gap-3">
-        <h3 id="aes-mode" className="text-sm font-semibold text-ink-strong">
-          {mode === 'ECB' ? 'ECB: every block on its own' : 'CBC: every block chained to the last'}
-        </h3>
-        <div className="cl-card overflow-x-auto px-4 py-3">
-          <ul className="flex flex-col gap-1 font-mono text-xs">
-            {blocks.map((b, i) => (
-              <li key={i} className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-ink-subtle">Block {i + 1}</span>
-                <span className="text-ink-muted">{b.input}</span>
-                <span className="text-ink-subtle" aria-hidden="true">
-                  →
-                </span>
-                <span
-                  className={[
-                    'rounded px-1',
-                    blocks.some((other, j) => j !== i && other.cipher === b.cipher)
-                      ? 'bg-marker-wash text-ink-strong underline decoration-marker-line decoration-2 underline-offset-4'
-                      : 'text-ink',
-                  ].join(' ')}
-                >
-                  {b.cipher}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="cl-prose text-sm text-ink-muted">
-          {mode === 'ECB' ? (
-            <>
-              In ECB each block is encrypted independently, so{' '}
-              <strong>identical plaintext blocks give identical ciphertext blocks</strong> &mdash;
-              any repeats above are marked. Type sixteen of the same character twice and watch two
-              rows match. That is the whole reason an ECB-encrypted image still shows the picture:
-              the famous penguin is not a flaw in AES, it is a flaw in using AES this way. Switch
-              the mode to CBC and the repeats disappear.
-            </>
-          ) : (
-            <>
-              In CBC each block is XORed with the previous ciphertext block before encryption, so
-              identical plaintext blocks give different ciphertext. That is what ECB lacks, and it is
-              why the IV must be <strong>unpredictable</strong> rather than merely different &mdash;
-              a counter or a timestamp is not good enough. CBC still provides no{' '}
-              <strong>authentication</strong>: an attacker cannot read the message but can flip
-              chosen bits of it, which is what AES-GCM exists to prevent.
-            </>
-          )}
-        </p>
-      </section>
+      <ModeChain steps={steps} mode={mode} cipherName="AES" />
     </div>
   );
 }

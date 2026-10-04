@@ -295,3 +295,10 @@ describe('the module', () => {
     expect(rowTranspositionCipher.explainer).toContain('multiple anagramming');
   });
 });
+
+describe('the lecture introduction', () => {
+  it('turns WORLD into RLDOW with the order (3, 4, 5, 2, 1), written as key 54123', () => {
+    expect(columnar('WORLD', '54123')).toBe('RLDOW');
+    expect(columnar('RLDOW', '54123', 'decrypt')).toBe('WORLD');
+  });
+});

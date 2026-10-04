@@ -15,7 +15,8 @@
  */
 import { useMemo, useState } from 'react';
 import type { Params, Step } from '../../../types';
-import { buildKeys, factor, modInverse, modPow } from './rsa';
+import { type MessageKind, buildKeys, euclidTable, factor, modInverse, modPow } from './rsa';
+import RsaSignature from './RsaSignature';
 
 function readNumber(params: Params, name: string, fallback: number): number {
   const value = Number(params[name]);
@@ -40,17 +41,20 @@ export default function RsaKeys({ steps, params }: { steps: Step[]; params: Para
     matches: boolean;
   } | null>(null);
 
-  const p = readNumber(params, 'p', 61);
-  const q = readNumber(params, 'q', 53);
+  const p = readNumber(params, 'p', 47);
+  const q = readNumber(params, 'q', 59);
   const e = readNumber(params, 'e', 17);
+  const kind: MessageKind = String(params['message'] ?? 'numbers') === 'text' ? 'text' : 'numbers';
 
   const keys = useMemo(() => {
     try {
-      return buildKeys(p, q, e);
+      return buildKeys(p, q, e, kind);
     } catch {
       return null;
     }
-  }, [p, q, e]);
+  }, [p, q, e, kind]);
+
+  const firstStep = steps.find((s) => s.data?.['isNumber'] === true);
 
   const firstCipher = steps.find((s) => s.data?.['isByte'] === true)?.data?.['cipher'];
 
@@ -172,6 +176,74 @@ export default function RsaKeys({ steps, params }: { steps: Step[]; params: Para
         </p>
       </section>
 
+      <section aria-labelledby="rsa-euclid" className="flex flex-col gap-3">
+        <h3 id="rsa-euclid" className="text-sm font-semibold text-ink-strong">
+          Computing d with the extended Euclidean algorithm
+        </h3>
+        <div className="cl-card overflow-x-auto px-4 py-3">
+          <table className="border-collapse text-left font-mono text-xs">
+            <thead>
+              <tr className="text-ink-subtle">
+                <th scope="col" className="py-1 pr-4 font-sans font-medium">Remainder</th>
+                <th scope="col" className="py-1 pr-4 font-sans font-medium">Quotient</th>
+                <th scope="col" className="py-1 pr-4 font-sans font-medium">Division</th>
+                <th scope="col" className="py-1 font-sans font-medium">Coefficient s</th>
+              </tr>
+            </thead>
+            <tbody>
+              {euclidTable(keys.e, keys.phi).map((row, i, all) => {
+                const a = all[i - 2];
+                const b = all[i - 1];
+                const last = i === all.length - 1 && row.remainder === 1n;
+                return (
+                  <tr key={i} className={['border-t border-line', last ? 'bg-marker-wash' : ''].join(' ')}>
+                    <td className="py-1 pr-4 text-ink-strong">{row.remainder.toString()}</td>
+                    <td className="py-1 pr-4 text-ink">{row.quotient === null ? '—' : row.quotient.toString()}</td>
+                    <td className="py-1 pr-4 text-ink-muted">
+                      {a !== undefined && b !== undefined && row.quotient !== null
+                        ? `${a.remainder} = ${row.quotient} × ${b.remainder} + ${row.remainder}`
+                        : i === 0
+                          ? 'start with φ(n)'
+                          : 'and e'}
+                    </td>
+                    <td className="py-1 text-ink">{row.s.toString()}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="cl-prose text-sm text-ink-muted">
+          Each remainder r is s × e reduced mod φ(n). Divide until the remainder is 1; that row&rsquo;s s,
+          taken mod φ(n), is d. Check: e × d = {keys.e.toString()} × {keys.d.toString()} ={' '}
+          {(keys.e * keys.d).toString()}, and {(keys.e * keys.d).toString()} mod {keys.phi.toString()} ={' '}
+          {((keys.e * keys.d) % keys.phi).toString()}.
+        </p>
+      </section>
+
+      {firstStep !== undefined && (
+        <section aria-labelledby="rsa-worked" className="flex flex-col gap-3">
+          <h3 id="rsa-worked" className="text-sm font-semibold text-ink-strong">
+            The first number, worked as on the slide
+          </h3>
+          <div className="cl-card overflow-x-auto px-4 py-3">
+            <pre className="font-mono text-sm leading-6 text-ink">
+{`Public key   (n, e) = (${keys.n}, ${keys.e})
+Private key  (n, d) = (${keys.n}, ${keys.d})
+${
+  firstStep.data?.['direction'] === 'decrypt'
+    ? `Decrypt:  M = C^d mod n = ${String(firstStep.data?.['value'])}^${keys.d} mod ${keys.n} = ${String(firstStep.data?.['result'])}
+Check:    C = M^e mod n = ${String(firstStep.data?.['result'])}^${keys.e} mod ${keys.n} = ${String(firstStep.data?.['value'])}`
+    : `Encrypt:  C = M^e mod n = ${String(firstStep.data?.['value'])}^${keys.e} mod ${keys.n} = ${String(firstStep.data?.['result'])}
+Decrypt:  M = C^d mod n = ${String(firstStep.data?.['result'])}^${keys.d} mod ${keys.n} = ${String(firstStep.data?.['value'])}`
+}`}
+            </pre>
+          </div>
+        </section>
+      )}
+
+      <RsaSignature keys={keys} />
+
       <section aria-labelledby="rsa-break" className="flex flex-col gap-3">
         <h3 id="rsa-break" className="text-sm font-semibold text-ink-strong">
           Breaking it, with nothing but the public key
@@ -206,7 +278,7 @@ export default function RsaKeys({ steps, params }: { steps: Step[]; params: Para
             </p>
             {firstCipher !== undefined && broken.matches && (
               <p className="font-mono text-sm text-ink">
-                First ciphertext number {String(firstCipher)} decrypts to byte{' '}
+                First ciphertext number {String(firstCipher)} decrypts to{' '}
                 {modPow(BigInt(String(firstCipher)), BigInt(broken.d), keys.n).toString()}.
               </p>
             )}

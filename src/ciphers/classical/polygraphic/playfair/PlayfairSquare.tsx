@@ -1,8 +1,8 @@
 /**
  * The Playfair square.
  *
- * Caesar and Vigenere got a disk because they turn an alphabet. Rail Fence got a
- * fence because it moves characters around. Playfair works on a 5x5 grid, so it
+ * Caesar and Vigenere got alphabet tables because they swap one letter for
+ * another. Rail Fence got a fence because it moves characters around. Playfair works on a 5x5 grid, so it
  * gets the grid — and the interesting part is that the *shape drawn on it* is the
  * rule being applied. A rectangle means the rectangle rule; a bar across a row
  * means the row rule. The geometry is not decoration here, it is the algorithm.

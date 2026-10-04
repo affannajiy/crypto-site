@@ -15,13 +15,17 @@
  * The gap is now worth fixing, and CLAUDE.md records that.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { MAX_PRIME, buildKeys, gcd, isPrime, rsaTrace } from './rsa';
+import { MAX_PRIME, type MessageKind, buildKeys, gcd, isPrime, rsaTrace } from './rsa';
 import { randomIntInclusive } from '../../../params';
 import RsaKeys from './RsaKeys';
 
+function readKind(p: Params): MessageKind {
+  return String(p['message'] ?? 'numbers') === 'text' ? 'text' : 'numbers';
+}
+
 /** Params arrive as `string | number` because they come from form controls. */
 function readKeys(p: Params) {
-  return buildKeys(Number(p['p'] ?? 61), Number(p['q'] ?? 53), Number(p['e'] ?? 17));
+  return buildKeys(Number(p['p'] ?? 47), Number(p['q'] ?? 59), Number(p['e'] ?? 17), readKind(p));
 }
 
 const explainer = `
@@ -58,6 +62,58 @@ Note what *e* has to satisfy: it must be coprime with φ(n), or it has no invers
 and no private key exists. That is the **Affine cipher's condition**, from the
 classical section, in a much larger modulus — and it fails for exactly the same
 reason.
+
+## The lecture example
+
+Lecture 05 sets up RSA with p = 47 and q = 59. Those are this page's defaults, and
+the first example is the lecture's message:
+
+    Step 1:  n = p × q = 47 × 59 = 2773
+    Step 2:  choose e = 17
+    Step 3:  publish (n, e) = (2773, 17)
+    Step 4:  φ(n) = (p−1)(q−1) = 46 × 58 = 2668
+             17 × d ≡ 1 (mod 2668)  gives  d = 157
+             check: 17 × 157 = 2669 = 2668 + 1
+
+    Encrypt M = 31:  C = 31¹⁷ mod 2773 = 587
+    Decrypt C = 587: M = 587¹⁵⁷ mod 2773 = 31
+
+The Visualize tab builds the same key table, works out d with the extended
+Euclidean algorithm row by row, and writes the first number out the same way.
+
+The message is **numbers** by default, because that is what RSA encrypts. Each
+number must be less than n. Switch the message to **text** to encrypt words: each
+byte then becomes one number, so n must be more than 255.
+
+## Choosing e
+
+The lecture tries every e for p = 3 and q = 7, where (p−1)(q−1) = 12. Any e that
+shares a factor with 12 fails, so 2, 3, 4, 6, 8, 9 and 10 are out. The lecture's
+list of survivors includes 8 and 10 by mistake, because both share the factor 2
+with 12. The values that work are **5, 7 and 11**. Try p = 3, q = 7, e = 8 here and
+the page refuses with the reason.
+
+## Lecture and lab notes
+
+- The lecture's diagram example uses p = 2, q = 7, n = 14, e = 5 and d = 11, and
+  encrypts 2 to 4. This page computes d = 5 for that key, and both are right:
+  5 × 5 = 25 and 5 × 11 = 55 are each 1 more than a multiple of 6. The inverse
+  is only defined mod φ(n) = 6, and 11 = 5 + 6. Load the example to check.
+- Lab 05 uses p = 17, q = 11 and e = 65537, but φ(n) is only 160, so e is larger
+  than φ(n). That breaks the lab's own rule 1 < e < φ(n). The example with that key
+  shows the error. With e = 7 instead, d = 23.
+- Lab 05 then asks you to encrypt M = 345 with n = 187. RSA works mod n, so M must
+  be less than n. 345 would come back as 345 mod 187 = 158. The page refuses it and
+  says why.
+- The lecture names four public-key algorithms: RSA, El Gamal, McEliece and
+  "TrueCrypt". TrueCrypt is disk-encryption software, not a public-key algorithm.
+
+## Digital signatures
+
+Lab 07 signs a document by hashing it and then encrypting the hash with the
+**private** key. Anyone verifies by decrypting with the **public** key and
+comparing hashes. The Visualize tab has a working signature on this page's key:
+sign, then change one letter of the document and watch the check fail.
 
 ## This page uses toy primes on purpose
 
@@ -126,27 +182,72 @@ const rsaCipher: CipherModule = {
   keyType: 'A public exponent and modulus; a private exponent kept back',
   security: 'secure',
   difficulty: 'advanced',
-  keywords: ['public key', 'asymmetric', 'factoring', 'modular exponentiation', 'primes', 'totient'],
+  keywords: ['public key', 'asymmetric', 'factoring', 'modular exponentiation', 'primes', 'totient', 'digital signature', 'euclidean algorithm', 'lab 05', 'lab 07'],
   blurb: 'Two keys, one published. The first cipher here that needs no shared secret.',
   explainer,
   // No 'attack'. RSA is broken through the public key, which is a param rather
   // than a ciphertext. The break lives on the Visualize tab; see the file header.
   tiers: ['encrypt', 'visualize', 'benchmark'],
   params: [
-    { kind: 'number', name: 'p', label: 'p (a prime)', min: 2, max: MAX_PRIME, default: 61 },
-    { kind: 'number', name: 'q', label: 'q (a different prime)', min: 2, max: MAX_PRIME, default: 53 },
+    { kind: 'number', name: 'p', label: 'p (a prime)', min: 2, max: MAX_PRIME, default: 47 },
+    { kind: 'number', name: 'q', label: 'q (a different prime)', min: 2, max: MAX_PRIME, default: 59 },
     { kind: 'number', name: 'e', label: 'e (public exponent, coprime with φ(n))', min: 2, max: 65537, default: 17 },
+    {
+      kind: 'select',
+      name: 'message',
+      label: 'Message',
+      options: [
+        { value: 'numbers', label: 'Numbers — each M less than n, as in the lecture' },
+        { value: 'text', label: 'Text — one number per byte (needs n > 255)' },
+      ],
+      default: 'numbers',
+      randomise: false,
+    },
   ],
+  textParams: { message: 'text' },
   examples: [
     {
-      label: 'The textbook primes',
-      input: 'Meet me at dawn.',
-      params: { p: 61, q: 53, e: 17 },
+      label: 'Lecture example: M = 31 encrypts to 587',
+      input: '31',
+      params: { p: 47, q: 59, e: 17, message: 'numbers' },
     },
     {
-      label: 'Larger toy primes',
-      input: 'Hold the bridge.',
-      params: { p: 257, q: 263, e: 65537 },
+      label: 'Lecture diagram: n = 14, e = 5, M = 2',
+      input: '2',
+      params: { p: 2, q: 7, e: 5, message: 'numbers' },
+    },
+    {
+      label: 'Lecture: e = 8 is not allowed with p = 3, q = 7',
+      input: '5',
+      params: { p: 3, q: 7, e: 8, message: 'numbers' },
+      demonstratesError: true,
+    },
+    {
+      label: 'Lab 05: p = 17, q = 11, e = 7, M = 42',
+      input: '42',
+      params: { p: 17, q: 11, e: 7, message: 'numbers' },
+    },
+    {
+      label: 'Lab 05 as printed: e = 65537 is larger than φ(n) = 160',
+      input: '42',
+      params: { p: 17, q: 11, e: 65537, message: 'numbers' },
+      demonstratesError: true,
+    },
+    {
+      label: 'Lab 05: M = 345 is not less than n = 187',
+      input: '345',
+      params: { p: 17, q: 11, e: 7, message: 'numbers' },
+      demonstratesError: true,
+    },
+    {
+      label: 'Several numbers at once',
+      input: '31 100 2000 2772',
+      params: { p: 47, q: 59, e: 17, message: 'numbers' },
+    },
+    {
+      label: 'Text, one byte at a time',
+      input: 'Meet me at dawn.',
+      params: { p: 47, q: 59, e: 17, message: 'text' },
     },
   ],
 
@@ -178,15 +279,15 @@ const rsaCipher: CipherModule = {
       );
       if (e !== undefined) return { p, q, e };
     }
-    return { p: 61, q: 53, e: 17 };
+    return { p: 47, q: 59, e: 17 };
   },
 
   encrypt(input: string, p: Params): TraceResult {
-    return rsaTrace(input, readKeys(p), 'encrypt');
+    return rsaTrace(input, readKeys(p), 'encrypt', readKind(p));
   },
 
   decrypt(input: string, p: Params): TraceResult {
-    return rsaTrace(input, readKeys(p), 'decrypt');
+    return rsaTrace(input, readKeys(p), 'decrypt', readKind(p));
   },
 
   visualize: RsaKeys,

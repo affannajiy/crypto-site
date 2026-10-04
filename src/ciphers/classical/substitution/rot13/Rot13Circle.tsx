@@ -1,9 +1,9 @@
 /**
  * The circle.
  *
- * Caesar's disk has two rings because Caesar's shift is a choice and you turn one
- * ring against the other to make it. ROT13 has no choice, so a second ring would
- * be a control with nothing to control. What it has instead is a geometric fact:
+ * Caesar's table has a second row you slide because Caesar's shift is a choice.
+ * ROT13 has no choice, so a sliding row would be a control with nothing to
+ * control. What it has instead is a geometric fact:
  * thirteen is half of twenty-six, so every letter sits **exactly opposite** its
  * partner. Draw the alphabet round a circle, draw the thirteen diameters, and the
  * cipher is the picture — each line is both directions at once.

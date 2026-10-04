@@ -12,12 +12,19 @@
  * out in front of you.
  */
 import type { CipherModule, Params, TraceResult } from '../../../types';
-import { oneTimePadTrace } from './otp';
-import OneTimePadReuse from './OneTimePadReuse';
+import { oneTimePadTrace, type Direction } from './otp';
+import { vernamTrace } from './vernam';
+import OneTimePadVisual from './OneTimePadVisual';
 
 /** Params arrive as `string | number` because they come from form controls. */
 function readPad(p: Params): string {
   return String(p['pad'] ?? '');
+}
+
+function run(input: string, p: Params, direction: Direction): TraceResult {
+  return String(p['mode'] ?? 'letters') === 'vernam'
+    ? vernamTrace(input, String(p['hexPad'] ?? ''), direction)
+    : oneTimePadTrace(input, readPad(p), direction);
 }
 
 /**
@@ -30,6 +37,12 @@ function readPad(p: Params): string {
  */
 const DEFAULT_PAD =
   'XMCKLQWRTZPBVNHGJDFSAYUIOEKRVTGBNZMQWLPXCDFHJSUAYIOETRBVNZQWMXKLPGJDCFHSUAYIOE';
+
+/** The Vernam pad: 96 random bytes in hex, published here and so, again, worthless as a key. */
+const DEFAULT_HEX_PAD =
+  'f6341c801c31bf5ef42e4131f44beead6e4b664b99c7b5ad9ff90dc5671cba64' +
+  '92b47f71bed2d0f2584e41685c6906889a3b283ec533d884e2332ab05d215a6d' +
+  'e362d0cfa2bb11ae244b2ce4a51ae4feb82850b79240107fe9395ae40aeb8531';
 
 const explainer = `
 This is the only cipher in this app that cannot be broken. Not "has not been
@@ -57,6 +70,23 @@ encrypt when the pad is too short rather than repeating it — repeating a pad t
 it straight back into a Vigenère cipher, and you have already seen what happens to
 those.
 
+## Letters or bits
+
+The page has two modes, and they are the same cipher.
+
+- **Letters** adds each pad letter to a message letter, modulo 26, as above. This
+  is the pencil-and-paper form, and it shows that a one-time pad is a Vigenère
+  cipher whose key never repeats.
+- **Vernam** is the form Gilbert Vernam built for the teleprinter in 1917, and the
+  one the stream-cipher notes describe. The message becomes bytes, the pad is
+  random bytes, and each bit is XORed with a pad bit: 1 where the two differ, 0
+  where they match. XOR is its own inverse, so the same pad XORed again gives the
+  message back. The ciphertext is written in hex.
+
+Addition modulo 26 and XOR are both ways to combine a message with a key so that
+a random key gives a random result. XOR is addition modulo 2, one bit at a time.
+The Visualize tab draws whichever mode is selected.
+
 ## Why it cannot be broken
 
 Take the ciphertext **EQNVZ**. With the right pad it decrypts to HELLO. But there
@@ -70,6 +100,20 @@ because the attacker is not clever enough, but because the information **is not
 there**. Every other cipher in this app leaks something: a frequency, a
 repetition, an adjacency. This one leaks nothing, because a truly random key of
 full length destroys all of it.
+
+## Lecture note
+
+The lecture mentions this cipher in its notes on stream ciphers, as the
+**Vernam cipher** in its one-time-pad form: the keystream is as long as the
+plaintext, and if it is truly random the cipher is unbreakable. The notes then give
+the catch. Both users need the whole keystream in advance, over a secure channel,
+which is impractical for a lot of traffic.
+
+That catch is why stream ciphers exist. Salsa20, ChaCha20, RC4 and A5/1 each share
+a short key and **compute** a long keystream from it. The XOR is the same as in
+this page's Vernam mode.
+The difference is that a computed keystream is only as good as its generator, and
+RC4's and A5/1's were not good enough.
 
 ## How this breaks
 
@@ -146,23 +190,47 @@ const oneTimePadCipher: CipherModule = {
       placeholder: 'Random letters, at least as many as the message has',
       randomise: { alphabet: 'letters', length: 96 },
     },
+    {
+      kind: 'select',
+      name: 'mode',
+      label: 'Mode',
+      options: [
+        { value: 'letters', label: 'Letters — add mod 26, like Vigenère' },
+        { value: 'vernam', label: 'Vernam — XOR on bits, ciphertext in hex' },
+      ],
+      default: 'letters',
+      randomise: false,
+    },
+    {
+      kind: 'text',
+      name: 'hexPad',
+      label: 'Pad for Vernam mode (hex bytes)',
+      default: DEFAULT_HEX_PAD,
+      placeholder: 'Random bytes in hex, at least one per message byte',
+      randomise: { alphabet: 'hex', length: 192 },
+    },
   ],
   examples: [
     {
       label: 'A message the pad is long enough for',
       input: 'Meet me at dawn.',
     },
+    {
+      label: 'Vernam: the same message, XORed bit by bit',
+      input: 'Meet me at dawn.',
+      params: { mode: 'vernam' },
+    },
   ],
 
   encrypt(input: string, p: Params): TraceResult {
-    return oneTimePadTrace(input, readPad(p), 'encrypt');
+    return run(input, p, 'encrypt');
   },
 
   decrypt(input: string, p: Params): TraceResult {
-    return oneTimePadTrace(input, readPad(p), 'decrypt');
+    return run(input, p, 'decrypt');
   },
 
-  visualize: OneTimePadReuse,
+  visualize: OneTimePadVisual,
 };
 
 export default oneTimePadCipher;

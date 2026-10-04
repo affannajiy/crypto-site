@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALTERNATE_PADDING,
+  ODD_PADDING,
   PADDING,
   SIZE,
   SQUARE_ALPHABET,
@@ -84,11 +85,11 @@ describe('findPosition', () => {
 describe('prepare', () => {
   it('drops anything that is not a letter', () => {
     // HITHERE is seven letters, so it also picks up the odd-length padding.
-    expect(letters(prepare('Hi, there!'))).toBe('HITHEREX');
+    expect(letters(prepare('Hi, there!'))).toBe('HITHEREZ');
   });
 
   it('folds J into I', () => {
-    expect(letters(prepare('JAM'))).toBe('IAMX');
+    expect(letters(prepare('JAM'))).toBe('IAMZ');
   });
 
   it('wedges a padding letter between a doubled pair', () => {
@@ -96,9 +97,9 @@ describe('prepare', () => {
   });
 
   it('uses the alternate padding when the doubled letter is itself X', () => {
-    // FO XQ XQ: the doubled X takes a Q between it, and the Q that lands last
-    // then leaves an odd length, which is padded with a Q for the same reason.
-    expect(letters(prepare('FOXX'))).toBe('FOXQXQ');
+    // FO XQ XZ: the doubled X takes a Q between it, and the odd length that
+    // leaves is padded with the usual Z.
+    expect(letters(prepare('FOXX'))).toBe('FOXQXZ');
   });
 
   it('leaves a doubled pair alone when it straddles two pairs anyway', () => {
@@ -106,9 +107,15 @@ describe('prepare', () => {
     expect(letters(prepare('ABBC'))).toBe('ABBC');
   });
 
-  it('pads an odd length', () => {
-    expect(letters(prepare('ODD'))).toBe('ODDX');
-    expect(letters(prepare('BOX'))).toBe('BOXQ');
+  it('pads an odd length with Z, as the course slides do', () => {
+    expect(letters(prepare('ODD'))).toBe('ODDZ');
+    expect(letters(prepare('BOX'))).toBe('BOXZ');
+    // The lab sheet's own example.
+    expect(letters(prepare('HIDEMONEY'))).toBe('HIDEMONEYZ');
+  });
+
+  it('pads with X instead when the odd letter is itself a Z', () => {
+    expect(letters(prepare('BUZ'))).toBe('BUZX');
   });
 
   it('always produces an even number of letters', () => {
@@ -140,7 +147,7 @@ describe('prepare', () => {
   it('remembers where each letter came from, and marks the ones it invented', () => {
     const prepared = prepare('Hit!');
     expect(prepared.map((p) => p.source)).toEqual([0, 1, 2, -1]);
-    expect(prepared[3]?.letter).toBe(PADDING);
+    expect(prepared[3]?.letter).toBe(ODD_PADDING);
   });
 
   it('is empty for text with no letters', () => {
@@ -364,8 +371,17 @@ describe('the module', () => {
     expect(playfairCipher.explainer).toContain('no Attack tab');
   });
 
-  it('uses the alternate padding letter it documents', () => {
+  it('uses the padding letters it documents', () => {
     expect(ALTERNATE_PADDING).toBe('Q');
     expect(PADDING).toBe('X');
+    expect(ODD_PADDING).toBe('Z');
+  });
+
+  it("matches the lecture's worked example and quiz", () => {
+    // Lecture 03, slides 27-31: INSTRUMENTS under MONARCHY. The slides fill in
+    // ST -> TL, ME -> CL and NT -> RQ and leave the rest as the quiz.
+    expect(playfair('instruments', 'MONARCHY')).toBe('GATLMZCLRQTX');
+    expect(playfair('by', 'MONARCHY')).toBe('DB');
+    expect(playfair('of', 'MONARCHY')).toBe('HP');
   });
 });
