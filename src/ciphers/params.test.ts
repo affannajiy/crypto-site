@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canRandomise, defaultParams, randomKeyFor, randomValue, textStartParams } from './params';
 import type { ParamSpec } from './types';
+import { MODES, MODE_OPTIONS } from '../lib/modes';
 import { allCiphers as ciphers, ciphers as shown } from './registry';
 
 describe('randomValue', () => {
@@ -81,5 +82,22 @@ describe('textStartParams', () => {
     // Classical ciphers fold case, drop spaces, merge J into I or add filler,
     // so compare the opening letters only.
     expect(letters(decrypted.output).startsWith('THEQUICK')).toBe(true);
+  });
+
+  // The Playground's mode select reaches every row that offers MODE_OPTIONS.
+  const blockRows = shown.flatMap((cipher) => {
+    const spec = cipher.params.find((p) => p.kind === 'select' && p.options === MODE_OPTIONS);
+    return spec === undefined ? [] : MODES.map((mode) => [cipher.slug, mode, cipher, spec.name] as const);
+  });
+
+  it('finds the three block ciphers through their mode select', () => {
+    expect(new Set(blockRows.map(([slug]) => slug))).toEqual(new Set(['des', 'triple-des', 'aes']));
+  });
+
+  it.each(blockRows)('lets %s run the sentence in %s', async (_, mode, cipher, name) => {
+    const params = { ...textStartParams(cipher), [name]: mode };
+    const encrypted = await cipher.encrypt(SENTENCE, params);
+    const decrypted = await cipher.decrypt!(encrypted.output, params);
+    expect(decrypted.output).toBe(SENTENCE);
   });
 });

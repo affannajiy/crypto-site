@@ -35,6 +35,43 @@ export const MODE_OPTIONS: { value: Mode; label: string }[] = [
   { value: 'CTR', label: 'CTR — counter, a keystream from IV, IV+1, …' },
 ];
 
+/**
+ * The lecture's table of modes: strength, weakness and where each is used.
+ * The mode diagram and the Playground both read it, so they cannot drift apart.
+ */
+export const MODE_SUMMARY: Record<Mode, { title: string; strength: string; weakness: string; uses: string }> = {
+  ECB: {
+    title: 'ECB — Electronic Codebook',
+    strength: 'Simple, and every block can be done in parallel.',
+    weakness: 'Identical plaintext blocks give identical ciphertext blocks, so patterns show through.',
+    uses: 'Legacy systems. Only safe for one block of random data.',
+  },
+  CBC: {
+    title: 'CBC — Cipher Block Chaining',
+    strength: 'Each ciphertext block depends on every plaintext block before it.',
+    weakness: 'Encryption is sequential, so slower. No integrity, and padding errors can leak.',
+    uses: 'TLS (older versions), BitLocker, FileVault, VPNs.',
+  },
+  CFB: {
+    title: 'CFB — Cipher Feedback',
+    strength: 'Encrypts a stream as it arrives, and resynchronises one block after an error.',
+    weakness: 'A bit error garbles the rest of its block and the whole of the next one.',
+    uses: 'Secure voice, virtual machine disk encryption.',
+  },
+  OFB: {
+    title: 'OFB — Output Feedback',
+    strength: 'The keystream never sees the message, so it can be computed ahead of time.',
+    weakness: 'No integrity: flip one ciphertext bit and exactly that plaintext bit flips.',
+    uses: 'Noisy or unreliable channels, remote access systems.',
+  },
+  CTR: {
+    title: 'CTR — Counter',
+    strength: 'Fast, and every block is independent, so it runs in parallel both ways.',
+    weakness: 'No integrity, and a counter value must never repeat under one key.',
+    uses: 'SSD encryption, network protocols, and inside AES-GCM.',
+  },
+};
+
 export function readMode(value: unknown, fallback: Mode = 'CBC'): Mode {
   const text = String(value ?? '').toUpperCase();
   return (MODES as readonly string[]).includes(text) ? (text as Mode) : fallback;

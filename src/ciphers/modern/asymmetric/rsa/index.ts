@@ -29,148 +29,33 @@ function readKeys(p: Params) {
 }
 
 const explainer = `
-Every cipher before this one on the site shares an assumption so complete that it
-is easy to miss: **the two people already share a secret**. Caesar, Vigenère,
-Enigma, AES, ChaCha20 — every one needs the key to have already travelled from one
-party to the other, and not one of them can help with that. For three thousand
-years that was simply the shape of the problem.
+Two keys: a public key encrypts and a private key decrypts. The security rests on factoring n.
 
-RSA is where it breaks. There are **two keys**. One encrypts and one decrypts, and
-knowing the first tells you nothing usable about the second. So the encrypting key
-can be published — put on a business card, served over plain HTTP, printed in a
-newspaper — and anyone at all can send you a message that only you can read.
+    n = p × q              φ(n) = (p−1)(q−1)
+    e coprime with φ(n)    d = e⁻¹ mod φ(n)
+    encrypt: c = mᵉ mod n  decrypt: m = c^d mod n
 
-## How
+## How it works
 
-    n = p × q                  two primes, multiplied
-    φ(n) = (p−1)(q−1)          Euler's totient
-    e                          public, coprime with φ(n)
-    d = e⁻¹ mod φ(n)           private
+- The lecture example: p = 47, q = 59, n = 2773, φ(n) = 2668, e = 17 and d = 157. M = 31 encrypts to 587, and 587 decrypts to 31.
+- The Visualize tab finds d with the extended Euclidean algorithm.
+- The message is numbers below n. Text mode makes each byte one number, so n must be more than 255.
+- The Lab 07 signature: hash the document, sign the hash with the private key, then verify with the public key. It is on the Visualize tab.
 
-    encrypt:  c = mᵉ mod n
-    decrypt:  m = c^d mod n
+## Lecture note
 
-It works because raising to *e* and then to *d* is raising to *ed*, and *ed* is 1
-more than a multiple of φ(n), and Euler's theorem says that brings you back where
-you started.
-
-The whole security sits in one sentence: **computing d needs φ(n), computing φ(n)
-needs p and q, and all anyone is given is n.** Factoring n is the attack, and
-there is no other route in.
-
-Note what *e* has to satisfy: it must be coprime with φ(n), or it has no inverse
-and no private key exists. That is the **Affine cipher's condition**, from the
-classical section, in a much larger modulus — and it fails for exactly the same
-reason.
-
-## The lecture example
-
-Lecture 05 sets up RSA with p = 47 and q = 59. Those are this page's defaults, and
-the first example is the lecture's message:
-
-    Step 1:  n = p × q = 47 × 59 = 2773
-    Step 2:  choose e = 17
-    Step 3:  publish (n, e) = (2773, 17)
-    Step 4:  φ(n) = (p−1)(q−1) = 46 × 58 = 2668
-             17 × d ≡ 1 (mod 2668)  gives  d = 157
-             check: 17 × 157 = 2669 = 2668 + 1
-
-    Encrypt M = 31:  C = 31¹⁷ mod 2773 = 587
-    Decrypt C = 587: M = 587¹⁵⁷ mod 2773 = 31
-
-The Visualize tab builds the same key table, works out d with the extended
-Euclidean algorithm row by row, and writes the first number out the same way.
-
-The message is **numbers** by default, because that is what RSA encrypts. Each
-number must be less than n. Switch the message to **text** to encrypt words: each
-byte then becomes one number, so n must be more than 255.
-
-## Choosing e
-
-The lecture tries every e for p = 3 and q = 7, where (p−1)(q−1) = 12. Any e that
-shares a factor with 12 fails, so 2, 3, 4, 6, 8, 9 and 10 are out. The lecture's
-list of survivors includes 8 and 10 by mistake, because both share the factor 2
-with 12. The values that work are **5, 7 and 11**. Try p = 3, q = 7, e = 8 here and
-the page refuses with the reason.
-
-## Lecture and lab notes
-
-- The lecture's diagram example uses p = 2, q = 7, n = 14, e = 5 and d = 11, and
-  encrypts 2 to 4. This page computes d = 5 for that key, and both are right:
-  5 × 5 = 25 and 5 × 11 = 55 are each 1 more than a multiple of 6. The inverse
-  is only defined mod φ(n) = 6, and 11 = 5 + 6. Load the example to check.
-- Lab 05 uses p = 17, q = 11 and e = 65537, but φ(n) is only 160, so e is larger
-  than φ(n). That breaks the lab's own rule 1 < e < φ(n). The example with that key
-  shows the error. With e = 7 instead, d = 23.
-- Lab 05 then asks you to encrypt M = 345 with n = 187. RSA works mod n, so M must
-  be less than n. 345 would come back as 345 mod 187 = 158. The page refuses it and
-  says why.
-- The lecture names four public-key algorithms: RSA, El Gamal, McEliece and
-  "TrueCrypt". TrueCrypt is disk-encryption software, not a public-key algorithm.
-
-## Digital signatures
-
-Lab 07 signs a document by hashing it and then encrypting the hash with the
-**private** key. Anyone verifies by decrypting with the **public** key and
-comparing hashes. The Visualize tab has a working signature on this page's key:
-sign, then change one letter of the document and watch the check fail.
-
-## This page uses toy primes on purpose
-
-Small enough that the Visualize tab factors n while you watch, and shows you the
-private key falling out. Real RSA uses 2048-bit or 4096-bit moduli, which are
-between 600 and 1200 decimal digits.
-
-**And this is textbook RSA, which is not an encryption scheme you may use.** The
-next section is not a list of caveats. It is the difference between the arithmetic
-above and something that works.
+- For p = 3, q = 7, φ(n) = 12. The slide's list of valid e includes 8 and 10, but both share the factor 2 with 12. The valid values are 5, 7 and 11.
+- For p = 2, q = 7, e = 5, the slide uses d = 11 and this page computes d = 5. Both are correct, because the inverse is defined only mod φ(n) = 6.
+- Lab 05 uses e = 65537 with φ(n) = 160. That breaks the rule 1 < e < φ(n). With e = 7, d = 23.
+- Lab 05 encrypts M = 345 with n = 187, but M must be less than n.
+- "TrueCrypt" is disk-encryption software, not a public-key algorithm.
 
 ## How this breaks
 
-**Factor n and it is over.** The Visualize tab does it by trial division and it
-takes a millisecond here. Nothing about the method changes for a 2048-bit modulus
-except the running time — and the running time *is* the security. RSA is not safe
-because factoring is impossible; it is safe because nobody has published a fast way
-to do it. That is a claim about the present state of knowledge, not a proof.
-
-**Small keys are dead.** RSA-768 was factored in 2009. RSA-829 in 2020. 1024-bit
-keys are considered broken by well-resourced attackers and have been deprecated for
-years. 2048 is the current floor.
-
-**Shor's algorithm factors in polynomial time on a quantum computer.** Not
-"faster"; a different complexity class. RSA does not have a longer-key answer to
-this the way symmetric ciphers do, which is why post-quantum cryptography is an
-active field with standards already published.
-
-**Textbook RSA is deterministic, and that alone is fatal.** The same message always
-gives the same ciphertext, so an attacker who suspects the plaintext can encrypt
-their guess with the *public* key and compare. Encrypting a yes/no answer, a credit
-card number, or a vote with textbook RSA leaks it immediately, because there are
-few enough possibilities to try them all.
-
-**Small messages do not even need factoring.** With e = 3 and a message m where
-m³ < n, the modulus never applies and the "encryption" is a cube. Take the ordinary
-cube root and you have the plaintext. This page encrypts one byte at a time, so it
-is wide open to precisely this — anyone can build a table of all 256 possible
-ciphertexts from the public key alone.
-
-**RSA is malleable.** Multiply a ciphertext by 2ᵉ and the plaintext is multiplied
-by 2, without anyone decrypting anything. That is a real attack on real protocols,
-and it is why encryption without authentication keeps failing.
-
-The answer to all of this is **padding** — OAEP, which adds randomness and
-structure so that the same message encrypts differently every time and malformed
-ciphertexts are rejected. The older PKCS#1 v1.5 padding was itself broken by
-Bleichenbacher's attack in 1998 and *keeps* being rediscovered in real software
-(ROBOT, 2017), which says something about how hard this is to get right.
-
-**And nobody encrypts data with RSA anyway.** It is thousands of times slower than
-AES and can only encrypt a message shorter than the modulus. In practice RSA moves
-an **AES key**, and AES moves the data. That hybrid is what your browser does on
-every HTTPS connection: public-key cryptography to agree on a symmetric key,
-symmetric cryptography for everything after. RSA solved the key distribution
-problem, and then handed the actual work back to the ciphers that were already good
-at it.
+- **Factor n.** The Visualize tab factors n instantly. Real keys use 2048 bits or more.
+- **Shor's algorithm** factors n on a quantum computer.
+- **This is textbook RSA, which is deterministic.** An attacker can encrypt a guess and compare it with the ciphertext. One byte per number means only 256 guesses.
+- **The fix is OAEP padding.** In practice, RSA only carries an AES key.
 `.trim();
 
 const rsaCipher: CipherModule = {
@@ -205,6 +90,21 @@ const rsaCipher: CipherModule = {
     },
   ],
   textParams: { message: 'text' },
+  quizzes: [
+    {
+      question: 'Quiz 3: write the formula for encryption using the public key, and for decryption using the private key.',
+      answer: 'Encrypt: C = Mᵉ mod n. Decrypt: M = Cᵈ mod n.',
+    },
+    {
+      question: 'Encrypt M = 31 with p = 47, q = 59 and e = 17.',
+      run: { input: '31', params: { p: 47, q: 59, e: 17 } },
+    },
+    {
+      question: 'With p = 3 and q = 7, which values of e are acceptable?',
+      answer: '5, 7 and 11. Each must be coprime with (p − 1)(q − 1) = 12.',
+      note: 'The slide also lists 8 and 10. Both share the factor 2 with 12, so neither has an inverse d.',
+    },
+  ],
   examples: [
     {
       label: 'Lecture example: M = 31 encrypts to 587',

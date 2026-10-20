@@ -9,7 +9,10 @@
  */
 import type { CipherModule, Difficulty, Security, Tier } from './types';
 
-/** Catalogue grouping. Ordered as the learning path, not alphabetically. */
+/**
+ * Catalogue grouping. Ordered as the learning path, not alphabetically: hashing
+ * comes last because Lecture 06 comes after the public-key lecture.
+ */
 export const FAMILIES = [
   {
     id: 'encoding',
@@ -23,11 +26,6 @@ export const FAMILIES = [
     description: 'Pen-and-paper ciphers. Every one of them is broken, and that is the lesson.',
   },
   {
-    id: 'hashing',
-    label: 'Hashing',
-    description: 'One-way functions. No key, no decryption, and a great deal of misuse.',
-  },
-  {
     id: 'symmetric',
     label: 'Symmetric',
     description: 'One shared key. Modern, fast, and unforgiving of a repeated nonce.',
@@ -36,6 +34,11 @@ export const FAMILIES = [
     id: 'asymmetric',
     label: 'Asymmetric',
     description: 'Two keys. How strangers agree on a secret in the open.',
+  },
+  {
+    id: 'hashing',
+    label: 'Hashing',
+    description: 'One-way functions. No key, no decryption, and a great deal of misuse.',
   },
 ] as const satisfies readonly { id: CipherModule['family']; label: string; description: string }[];
 
@@ -262,6 +265,22 @@ export function validateRegistry(entries: readonly { path: string; cipher: Ciphe
       }
     }
 
+    // A quiz is computed or recalled, never both: a hand-typed answer beside a
+    // run would be a second source of truth, and the slides have slips.
+    for (const quiz of cipher.quizzes ?? []) {
+      if ((quiz.run === undefined) === (quiz.answer === undefined)) {
+        problems.push(`${where}: quiz '${quiz.question}' needs exactly one of run and answer.`);
+      }
+      for (const name of Object.keys(quiz.run?.params ?? {})) {
+        if (!cipher.params.some((spec) => spec.name === name)) {
+          problems.push(`${where}: quiz '${quiz.question}' sets param '${name}', which this cipher does not have.`);
+        }
+      }
+      if (quiz.run?.direction === 'decrypt' && cipher.decrypt === undefined) {
+        problems.push(`${where}: quiz '${quiz.question}' decrypts, but this cipher is one-way.`);
+      }
+    }
+
     // textParams is a key fragment like an example's, so it gets the same check,
     // plus one: a select it sets must be set to one of its options.
     for (const [name, value] of Object.entries(cipher.textParams ?? {})) {
@@ -353,6 +372,11 @@ export const COURSE_SLUGS: readonly string[] = [
   'aes',
   // Lecture 05, Labs 05-07: public key.
   'rsa',
+  // Lecture 06: hash functions. PBKDF2 is not in the slides and stays hidden.
+  'md5',
+  'sha-1',
+  'sha-256',
+  'sha-512',
 ];
 
 /** Every registered cipher, shown or not, ordered by family, then learning path, then name. */

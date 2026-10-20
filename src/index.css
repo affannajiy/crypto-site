@@ -124,11 +124,19 @@
    * keeps that from happening — it lets the browser break long words instead of
    * stretching the spaces around them, so drop one and you should drop both.
    */
+  /* Left-aligned on phones: a 300px column has too few words per line for
+     justify, and the gaps it opened read as broken text. */
   .cl-prose {
     width: 100%;
-    text-align: justify;
+    text-align: left;
     hyphens: auto;
     line-height: 1.65;
+  }
+
+  @media (min-width: 640px) {
+    .cl-prose {
+      text-align: justify;
+    }
   }
 
   .cl-button {

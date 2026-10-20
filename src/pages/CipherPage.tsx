@@ -20,10 +20,7 @@ export default function CipherPage() {
     return (
       <div className="flex w-full flex-col gap-4">
         <h1 className="text-2xl font-semibold text-ink-strong">No cipher called “{slug}”</h1>
-        <p className="cl-prose text-ink-muted">
-          That address does not match anything in the catalogue. It may have been renamed, or
-          it may not be built yet.
-        </p>
+        <p className="text-ink-muted">Not in the catalogue.</p>
         <p>
           <Link to="/" className="cl-button">
             Back to the catalogue

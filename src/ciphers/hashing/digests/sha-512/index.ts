@@ -13,72 +13,24 @@ import { sha512, sha512Trace } from './sha512';
 import Widths from './Widths';
 
 const explainer = `
-SHA-512 is [SHA-256](#/cipher/sha-256) with everything widened. Same padding, same
-message schedule, same eight working words shifted along and rewritten two at a
-time, same irreversible addition at the end of each block. What changes is size:
+SHA-256 with everything widened.
 
-    word         32 bits  ->  64 bits
-    block        64 bytes ->  128 bytes
-    rounds       64       ->  80
-    constants    64       ->  80
-    length field 64 bits  ->  128 bits
-    digest       256 bits ->  512 bits
+## How it works
 
-The rotation amounts change too, and they are *not* scaled versions of SHA-256's:
-28/34/39 and 14/18/41 where SHA-256 uses 2/13/22 and 6/11/25. A 64-bit word needs
-its own answer to "how far apart should these be", not the 32-bit answer doubled.
+- It uses 64-bit words, 128-byte blocks, 80 rounds and a 512-bit digest.
+- Its rotation amounts are new values, not SHA-256's values doubled.
+- This page derives the 80 constants from the cube roots of the first 80 primes. It does not paste them in.
+- It is faster than SHA-256 on a 64-bit CPU, but not here. JavaScript BigInt makes it slow.
 
-## The constants are computed here, not pasted
+## Lecture note
 
-SHA-512's eighty constants are the first 64 bits of the fractional parts of the
-cube roots of the first eighty primes. Most implementations paste in eighty
-sixteen-digit hex literals that nobody ever checks. This one derives them with
-exact integer arithmetic, so the "nothing up my sleeve" claim is ten lines you can
-read rather than eighty numbers you have to trust. The test pins the first and the
-last against the published values, in case the derivation is the thing that is
-wrong.
-
-## Why it is not simply "better than SHA-256"
-
-Both are far beyond the size where the digest length is what matters. A collision
-against SHA-256 needs about 2^128 operations by the birthday bound alone, which is
-not a number anyone is getting to. Choosing SHA-512 over SHA-256 does not buy
-security you can use.
-
-What it buys is **speed on a 64-bit CPU**, where each round moves twice as much
-data for the same instruction. SHA-512 is typically around 1.5× faster than
-SHA-256 on a modern processor, which is the opposite of what people expect from
-the bigger number.
-
-It does not buy that here. This implementation holds 64-bit words as \`bigint\`
-because JavaScript has no 64-bit integer type, and every operation allocates.
-Run the Benchmark tab and SHA-512 loses to SHA-256 badly. That measurement is
-about this file, not about the algorithm.
-
-SHA-512 is also the base of SHA-384 and SHA-512/256, which are the same function
-with different starting values and the output cut short — and truncating is what
-makes them immune to the length-extension attack that SHA-256 has.
+- Lecture 06 names SHA-512 but gives no detail. Its differences are 64-bit words and 80 steps.
+- A longer digest does not make it meaningfully safer. SHA-256 is already out of reach.
 
 ## How this breaks
 
-It does not, currently. The best published collision attacks reach around 28 of
-the 80 rounds. There is no practical attack on SHA-512, and none expected.
-
-Everything that goes wrong with it goes wrong around it, and it is the same list
-as SHA-256's:
-
-- **It is not encryption.** Nothing is hidden that can be guessed. Hash a postcode
-  and an attacker hashes every postcode.
-- **It is not a password function.** Being fast is a virtue here and a fatal flaw
-  there. Passwords need Argon2, bcrypt, scrypt or [PBKDF2](#/cipher/pbkdf2) —
-  something deliberately slow, and salted.
-- **It is not a signature.** Anyone can compute a digest. Authenticity needs a key:
-  HMAC, or a real signature scheme.
-- **Length extension.** Like SHA-256, the digest *is* the internal state, so
-  someone who knows \`sha512(secret + message)\` and the length of the secret can
-  extend it without knowing the secret. SHA-384 and SHA-512/256 cannot be extended
-  this way, because they throw half the state away. Use HMAC and the question
-  never arises.
+- **There is no practical attack.** The best collision attacks reach about 28 of the 80 rounds.
+- **It has the same misuses as SHA-256.** It is not encryption, it is not a password hash, and it allows length extension. SHA-384 and SHA-512/256 do not allow length extension.
 `;
 
 const sha512Cipher: CipherModule = {

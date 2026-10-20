@@ -31,138 +31,33 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-The Advanced Encryption Standard. Designed by Joan Daemen and Vincent Rijmen as
-*Rijndael*, chosen by NIST in 2001 after a five-year public competition, and now
-running inside essentially every encrypted connection, disk and message you touch.
-It is the first thing on this site with **no known practical attack**.
+Rijndael, chosen by NIST in 2001. It has 128-bit blocks and 128, 192 or 256-bit keys, and no known practical attack.
 
-## What one round does
+## How it works
 
-The state is sixteen bytes in a 4×4 grid, filled **down the columns**. Each round
-does four things, and the Visualize tab shows all four:
-
-**SubBytes** — every byte replaced through one fixed 256-entry table. This is the
-only **non-linear** step in the entire cipher, and it is the reason AES is not a
-system of equations. The Hill cipher on this site is pure linear algebra and falls
-to four known letters precisely because it has no step like this.
-
-**ShiftRows** — row 0 stays put, row 1 rotates one place left, row 2 two, row 3
-three. It moves bytes *between* columns so that MixColumns has something new to mix.
-
-**MixColumns** — each column multiplied by a fixed matrix over GF(2⁸), so every
-output byte of a column depends on all four inputs. That is **the Hill cipher's
-idea**, moved into a field where every non-zero element has an inverse and there is
-no awkward 13 to trip over. Choosing the algebra to fit the cipher, rather than
-inheriting 26 letters from the alphabet, is exactly what Trifid's 27 symbols were
-reaching for.
-
-**AddRoundKey** — XOR sixteen bytes of key schedule.
-
-Ten rounds for a 128-bit key, twelve for 192, fourteen for 256. **The final round
-has no MixColumns**, which is not an oversight: it is what makes decryption the
-same shape as encryption rather than a special case.
-
-Confusion and diffusion, alternating, and neither useful alone — which is the same
-structure ADFGVX has, thirty years before Shannon named the two properties.
-
-## Modes of operation
-
-AES encrypts exactly one 16-byte block. A **mode** says how to use it on a longer
-message. The lecture follows NIST SP 800-38A and names five, and the Mode control
-above offers all five. The Visualize tab draws the chain for whichever you pick.
-
-| Mode | Strength | Weakness | Where the lecture says it is used |
-| --- | --- | --- | --- |
-| ECB | Simple and parallel | Equal plaintext blocks give equal ciphertext blocks | Legacy systems |
-| CBC | Each block depends on every block before it | Encryption is sequential, so slower | TLS, BitLocker, FileVault, VPNs |
-| CFB | Encrypts a stream as it arrives | A bit error also garbles the next block | Secure voice, VM disks |
-| OFB | Keystream can be computed ahead of time | No integrity: flip a ciphertext bit and the same plaintext bit flips | Noisy channels, remote access |
-| CTR | Fast, and every block is independent | No integrity, and a counter must never repeat under one key | SSD encryption, network encryption |
-
-Two things the table hides are worth saying out loud. First, **CFB, OFB and CTR
-never run AES backwards**, not even to decrypt. They use AES only to make a
-keystream and XOR it in, which turns a block cipher into a stream cipher. That is
-why they need no padding: try a 5-letter message in CTR and the ciphertext is 5
-bytes. Second, the lecture table lists OFB as "self-synchronizing". That is CFB.
-OFB does not recover from a lost bit at all, because its keystream never sees the
-ciphertext. CFB recovers after one block, which is what self-synchronising means.
-
-The tests check all five against the NIST SP 800-38A vectors, and CTR against
-WebCrypto as well.
+- The state is 16 bytes in a 4×4 grid, filled down the columns.
+- **SubBytes:** the S-box. This is the only non-linear step.
+- **ShiftRows:** row r rotates r places left.
+- **MixColumns:** each column is multiplied by a fixed matrix over GF(2⁸).
+- **AddRoundKey:** an XOR with the round key.
+- There are 10, 12 or 14 rounds. The last round has no MixColumns.
+- **Modes:** ECB, CBC, CFB, OFB and CTR. CFB, OFB and CTR only make keystream, so they need no padding.
 
 ## Lecture note
 
-The lecture says the round function runs "9, 11 or 13 rounds" and then adds a final
-round. That is the same as 10, 12 or 14 rounds in total, which is the number in the
-summary table and the number on this page.
-
-The lecture calls the MixColumns multiplier a "circulant MD5 matrix". The term is
-**MDS matrix** (maximum distance separable). MD5 is a hash function, and it has
-nothing to do with AES.
-
-The lecture's worked examples are pinned in the tests, so this page is checked
-against them. The S-box sends **45 to 6E**: row 4, column 5. MixColumns sends the
-column 87 6E 46 A6 to **47 37 94 ED**. The first output byte is
-(02·87) ⊕ (03·6E) ⊕ 46 ⊕ A6 = 47. Multiplying by 02 is a left shift, then an XOR
-with 1B if the top bit was 1. Multiplying by 03 is (02·x) ⊕ x.
-
-## About this implementation
-
-Everything else modern on this site should use the browser's own crypto, and this
-page does not, for one reason: **crypto.subtle.encrypt** returns a ciphertext and
-nothing else. It cannot show you a round. So AES is written out in full here — and
-the test suite **checks it against WebCrypto block for block**, so what you see is
-provably the same function your browser computes.
-
-**Do not use this code for anything real.** It is written for clarity, which means
-its table lookups are not constant-time, which means a real attacker measuring
-cache timing could recover the key. That is not hypothetical; it is why production
-AES uses hardware instructions or bitsliced code.
+- "9, 11 or 13 rounds" plus a final round is 10, 12 or 14 in total.
+- "Circulant MD5 matrix" should be **MDS matrix**. MD5 is a hash function.
+- The mode table calls OFB "self-synchronizing". That describes CFB, not OFB.
+- The S-box sends 45 → 6E. MixColumns sends 87 6E 46 A6 → 47 37 94 ED.
 
 ## How this breaks
 
-**Not by cryptanalysis.** After twenty-five years of concentrated public attack the
-best known result against full AES-128 is about four times faster than trying every
-key, which leaves it far beyond reach. Nothing in this section is about the
-algorithm. **Everything that has broken AES in the real world is about how it was
-used**, and that is the lesson this page exists for.
-
-**ECB mode leaks the shape of your data.** Encrypting each block independently
-means identical plaintext blocks give identical ciphertext blocks. Encrypt a
-picture in ECB and you can still see the picture — the famous penguin. Switch this
-page to ECB, type sixteen of the same character twice, and watch two ciphertext
-blocks come out identical. AES did nothing wrong; the mode did.
-
-**A predictable IV breaks CBC.** The IV must be unpredictable, not merely
-different. Using a counter or a timestamp allows a chosen-plaintext attack that
-confirms guesses about the plaintext — this is the **BEAST** attack on TLS 1.0, and
-it was a real, exploited vulnerability.
-
-**A repeated nonce destroys GCM completely.** AES-GCM is the mode you should
-actually use, and it fails catastrophically if a nonce is ever reused with the same
-key: two messages under one nonce leak their XOR, exactly as with a reused
-One-Time Pad, *and* the authentication key can be recovered so an attacker can
-forge messages. This is the same failure that killed ADFGVX and the Soviet pads.
-**Key and nonce reuse is the most reliable way to destroy a sound cipher**, and it
-is still the most common real-world failure.
-
-**Telling an attacker that padding was wrong is a decryption oracle.** If a system
-distinguishes "bad padding" from "bad message", an attacker can decrypt arbitrary
-ciphertext one byte at a time without ever learning the key — a **padding oracle**
-attack. This page does report bad padding, because it is a teaching tool and you
-need to know why decryption failed; a real system must never do that, which is why
-its error message says so.
-
-**Encryption is not authentication.** CBC and ECB provide confidentiality and
-nothing else. An attacker who cannot read your message can still change it in
-controlled ways — flipping a bit in a CBC ciphertext block flips the same bit in the
-next plaintext block. If integrity matters, and it almost always does, you need an
-**authenticated** mode: AES-GCM, or ChaCha20-Poly1305.
-
-**And the key has to come from somewhere.** A key typed into a box, committed to a
-repository, derived from a password without a slow KDF, or shipped inside an app is
-the vulnerability — not AES. The strongest cipher in the world sits underneath a
-key management problem, and that is where systems actually fail.
+- **The algorithm holds.** The best attack on AES-128 is only about 4× faster than brute force.
+- **ECB leaks patterns.** Equal plaintext blocks give equal ciphertext blocks.
+- **A reused nonce or IV breaks it.** A predictable CBC IV allowed BEAST, and a repeated GCM nonce leaks the plaintext.
+- **A padding oracle decrypts the message.** If the system reports "bad padding", an attacker can decrypt byte by byte.
+- **CBC and ECB have no authentication.** Use an authenticated mode such as AES-GCM.
+- **Do not use this code for real.** Its table lookups are not constant-time.
 `.trim();
 
 const aesCipher: CipherModule = {
@@ -214,6 +109,24 @@ const aesCipher: CipherModule = {
     },
   ],
   textParams: { format: 'text' },
+  quizzes: [
+    { question: 'Quiz 3: what is the block size of AES?', answer: '128 bits, as a 4×4 grid of bytes.' },
+    { question: 'What are the key sizes of AES?', answer: '128, 192 or 256 bits.' },
+    {
+      question: 'How many rounds are in AES?',
+      answer: '10, 12 or 14, for 128-, 192- and 256-bit keys.',
+      note: 'One slide says 9, 11 or 13 rounds plus an initial round. That counts the same rounds a different way. The last round has no MixColumns.',
+    },
+    {
+      question: 'What are the main strengths of AES?',
+      answer:
+        'No known practical attack on the full cipher, a key long enough to rule out brute force, fast in hardware and software, and a public standard (NIST, 2001) that is used everywhere.',
+    },
+    {
+      question: 'SubBytes: what does the S-box give for 45? Use the panel above to check.',
+      answer: '6e. Row X = 4, column Y = 5.',
+    },
+  ],
   examples: [
     {
       label: 'A sentence, in CBC',

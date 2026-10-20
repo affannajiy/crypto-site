@@ -93,11 +93,7 @@ export default function Analyse() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
           Frequency analysis
         </h1>
-        <p className="cl-prose text-ink-muted">
-          Paste a ciphertext and count it. Every Attack tab on this site already knows which cipher
-          it is breaking. This page is the step before that, whereby the message is all there is.
-          Nothing is decrypted here, as these are measurements and what they suggest.
-        </p>
+        <p className="text-ink-muted">Paste a ciphertext. Count it. Nothing is decrypted.</p>
       </header>
 
       <div className="flex flex-col gap-2">
@@ -139,9 +135,7 @@ export default function Analyse() {
           </ul>
         )}
         <p className="cl-prose mt-4 border-t border-line pt-3 text-sm text-ink-muted">
-          These are suggestions, not an identification. A short polyalphabetic sample and a long
-          monoalphabetic one can measure the same, and no number here separates two ciphers that
-          have the same shape. That is what trying each one on its own page is for.
+          Suggestions, not an identification.
         </p>
       </section>
 
@@ -166,10 +160,7 @@ export default function Analyse() {
           </div>
         </div>
         <p className="cl-prose mt-3 text-sm text-ink-muted">
-          The chance that two letters picked at random from this text are the same letter. It
-          survives substitution, since renaming every letter does not change how often letters
-          repeat. As a result, it separates one-alphabet ciphers from many-alphabet ones without
-          decrypting anything.
+          Chance two random letters match. Near English: one alphabet. Near random: many.
         </p>
       </section>
 
@@ -178,9 +169,7 @@ export default function Analyse() {
           Letter frequency
         </h2>
         <p className="cl-prose mt-1 text-sm text-ink-muted">
-          This text on the left, English on the right. A monoalphabetic cipher keeps the shape of
-          the left column and moves it onto different letters; a transposition leaves it exactly
-          where it is, which is why counting letters cannot break one.
+          This text against English. Substitution moves the shape; transposition keeps it.
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-80">

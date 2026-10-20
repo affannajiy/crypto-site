@@ -30,125 +30,28 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-The Data Encryption Standard, adopted by the US government in 1977 and the first
-cipher a government ever published **in full** and asked the world to use. That
-decision looks unremarkable now and was not: before DES, ciphers were secrets about
-secrets. Modern cryptography is a public discipline because of this one.
+The US standard of 1977: 64-bit blocks, 16 Feistel rounds and a 56-bit key. It was the first cipher a government published in full.
 
-## The Feistel network
+## How it works
 
-Split the 64-bit block in half. Each round:
-
-    L(i) = R(i-1)
-    R(i) = L(i-1) XOR F(R(i-1), K(i))
-
-Sixteen times, then swap the halves once at the end.
-
-Now the important part. **F does not have to be invertible.** Reversing the rounds
-undoes them whatever F is, because the XOR cancels itself — so a designer can make
-F as destructive as they like and decryption still costs nothing extra. DES's F
-throws information away on purpose: its S-boxes take six bits and return four, so
-four different inputs land on every output.
-
-That freedom is what a Feistel network buys. AES gave it up and pays the price:
-every step of AES needs its own inverse, and the decryption path is a different
-piece of code. DES decrypts by running the same sixteen rounds with the key
-schedule backwards, and nothing else changes at all.
-
-## Inside F
-
-**Expand** 32 bits to 48 by repeating the bits at the edge of each group — which is
-how a change in one bit reaches two S-boxes instead of one. **XOR** the 48-bit
-round key. **Substitute** through eight S-boxes, six bits in and four out.
-**Permute** the 32 bits so each S-box's output feeds different boxes next round.
-
-The S-boxes are the only non-linear part of DES. Without them the whole cipher
-would be a system of linear equations and would fall the way the Hill cipher does.
-
-## The S-box story
-
-IBM designed DES and the NSA changed the S-boxes before publication, without
-explanation. For sixteen years this was widely assumed to be a back door.
-
-Then in 1990 Eli Biham and Adi Shamir published **differential cryptanalysis**, and
-it turned out the modified S-boxes were close to optimally resistant to it while
-the original ones were not. IBM later confirmed they had found the technique
-themselves in 1974 and been asked to keep quiet. The NSA had strengthened DES
-against an attack that would not be publicly discovered for another sixteen years.
-
-They also **shortened the key from 64 bits to 56**, which is the other half of the
-story and the half that killed it.
+- Each of the 16 rounds sets L(i) = R(i-1) and R(i) = L(i-1) XOR F(R(i-1), K(i)). To decrypt, use the keys in reverse order.
+- F expands 32 bits to 48, XORs in the round key, goes through eight S-boxes (6 bits in, 4 out), then permutes the result.
+- The S-boxes are the only non-linear part.
+- Set the message format to Hex for raw test vectors.
 
 ## Lecture note
 
-The lecture and Lab 04 give DES as a 64-bit block, 16 rounds and 16 subkeys of 48
-bits. Both are right. The lecture gives the key size as **64 bits**, and the lab
-says DES uses "keys of 48 bits". Both need care:
-
-- The key is **written** as 64 bits, but every eighth bit is a parity bit. PC-1
-  drops those 8, so the **effective key is 56 bits**. That is the number behind
-  "brute force works": 2⁵⁶ keys, not 2⁶⁴.
-- **48 bits** is the size of each **round subkey**, which PC-2 picks out of the 56.
-  It is not the size of the key.
-
-The quiz asks for "the main weakness of DES". The answer is the **key size**, and
-the section below shows why the design itself held.
-
-## Lab 04 experiments
-
-The examples above reproduce the Lab 04 experiments. Set the message format to
-**Hex**, so the message is raw bytes with no padding.
-
-**Weak keys.** For the key 0101010101010101, all 16 round keys are the same.
-Therefore encryption and decryption are the same operation, and encrypting twice
-gives the plaintext back. Load "weak key, first encryption": 0123456789ABCDEF
-becomes 617B3A0CE8F07100. Then load "encrypt the result again", and the output is
-0123456789ABCDEF. There are four weak keys and twelve semi-weak keys. The chance
-of picking one at random is about 8.8 × 10⁻¹⁶.
-
-**The complement property.** Invert every bit of the key and every bit of the
-plaintext, and you get every bit of the ciphertext inverted. The classic vector
-gives 85E813540F0AB405. The complement example gives 7A17ECABF0F54BFA, which is
-exactly its complement. An attacker can use this to test two keys for the price of
-one, so a brute force needs only 2⁵⁵ trials.
-
-**The avalanche effect.** The last example flips the final plaintext bit of the
-test vector. Compare its output with the first example: about half of the 64
-output bits change. The lecture calls this DES's strength.
+- The key is written as 64 bits, but 8 of them are parity bits, so the **effective key is 56 bits**. Lab 04's "keys of 48 bits" are the **round subkeys**, not the key.
+- The main weakness, from the quiz, is the **key size**.
+- **Weak key:** with 0101010101010101, all 16 subkeys are equal. 0123456789ABCDEF → 617B3A0CE8F07100, and encrypting again gives 0123456789ABCDEF back.
+- **Complement property:** invert the key and the plaintext, and the ciphertext inverts. 85E813540F0AB405 becomes 7A17ECABF0F54BFA. Brute force then needs only 2⁵⁵ trials.
+- **Avalanche:** flip one plaintext bit and about half of the 64 output bits change.
 
 ## How this breaks
 
-**By trying all the keys.** 2⁵⁶ is about 72 quadrillion, which was out of reach in
-1977 and was not for long. Whitfield Diffie and Martin Hellman argued in 1977 that
-a $20 million machine could do it in a day, and were dismissed. In 1998 the
-Electronic Frontier Foundation built **Deep Crack** for about $250,000 and broke a
-DES key in 56 hours. In 1999 the same machine, working with distributed.net, did it
-in 22 hours. Today it is a cloud bill.
-
-There is no Attack tab on this page for the same reason there is none on Enigma's:
-a brute force that cannot finish in a browser is not a demonstration of anything.
-
-**Note what did *not* break it.** After fifty years of public attack there is no
-practical structural weakness in DES. Differential cryptanalysis needs 2⁴⁷ chosen
-plaintexts; linear cryptanalysis needs 2⁴³ known plaintexts. Both are academically
-important and neither is how anyone actually broke DES. **The design was sound and
-the key was too short**, and those are different failures with different lessons.
-Compare Enigma, whose key space is vastly larger than DES's and which fell to
-structure and procedure. Key size and cipher quality are independent variables.
-
-**3DES bought time and then ran out of it.** Encrypt, decrypt, encrypt with two or
-three keys gives about 112 bits of security — not 168, because of a
-meet-in-the-middle attack — and it stayed in banking for decades. But its **64-bit
-block** is a separate problem from its key: with a block that small, a repeated
-ciphertext block becomes likely after about 32 GB of traffic, which the **Sweet32**
-attack exploited against real HTTPS and OpenVPN connections in 2016. NIST withdrew
-3DES entirely in 2023. A block size is a security parameter too, and AES's 128-bit
-block is why it does not have this problem.
-
-**And everything on the AES page still applies.** ECB still shows you the picture.
-CBC still has no authentication. A padding oracle still decrypts your message.
-Those are properties of modes, not of the cipher underneath them, and they came
-along unchanged from DES to AES.
+- **Brute force over 2⁵⁶ keys.** In 1998 the EFF's Deep Crack found a key in 56 hours.
+- **The design is not the problem.** The differential cryptanalysis attack needs 2⁴⁷ chosen plaintexts. The NSA's S-boxes resist it.
+- **There is no Attack tab.** A brute force that cannot finish in a browser shows nothing.
 `.trim();
 
 const desCipher: CipherModule = {
@@ -200,6 +103,19 @@ const desCipher: CipherModule = {
     },
   ],
   textParams: { format: 'text' },
+  quizzes: [
+    { question: 'Quiz 2: what is the block size of DES?', answer: '64 bits.' },
+    {
+      question: 'What is the length of the key (key size) of DES?',
+      answer: '64 bits as written, of which 56 are used.',
+      note: 'Every eighth bit is a parity bit and is dropped by PC-1. The slide says 64. Lab 04 says 48, which is the size of each round subkey, not of the key.',
+    },
+    { question: 'How many rounds are in DES?', answer: '16, with one 48-bit subkey for each round.' },
+    {
+      question: 'What is the main weakness of DES?',
+      answer: 'The short key. 2⁵⁶ keys can be tried by brute force: the EFF machine Deep Crack did it in 56 hours in 1998.',
+    },
+  ],
   examples: [
     {
       label: 'The classic DES test vector: 85E813540F0AB405',

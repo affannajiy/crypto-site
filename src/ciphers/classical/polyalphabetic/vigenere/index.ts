@@ -20,100 +20,20 @@ function readKey(p: Params): string {
 }
 
 const explainer = `
-Vigenere is the answer to the most obvious problem of Caesar. Caesar shifts every
-letter by the same amount, so the ciphertext keeps the shape of the plaintext.
-Vigenere, on the other hand, shifts every letter by a different amount, taken from
-a repeating keyword.
-
-Giovan Battista Bellaso published it in 1553, and it was misattributed to Blaise
-de Vigenere for the next few centuries. For about three hundred years it was
-considered unbreakable, and it was known as **le chiffre indechiffrable** (the
-indecipherable cipher). This is worth sitting with, because it was being broken
-privately the whole time.
+A repeating keyword gives every letter its own Caesar shift. Giovan Battista Bellaso published it in 1553.
 
 ## How it works
 
-Write the key under the message, repeating it as often as needed:
-
-- Message: **A T T A C K A T D A W N**
-- Key: **L E M O N L E M O N L E**
-
-Each key letter is a shift, whereby A is 0, B is 1 and L is 11. As a result, every
-column is a plain Caesar cipher with its own shift. A shifted by L (11) is L, T
-shifted by E (4) is X, and T shifted by M (12) is F. The message becomes
-**LXFOPVEFRNHR**.
-
-On paper, the lecture does this with the **Vigenère table**, also called the
-tabula recta: 26 rows, each one a Caesar alphabet shifted one more place than the
-row above. Find the plaintext letter in the top row and the key letter in the left
-column. Where they cross is the ciphertext letter. To decrypt, go along the key
-letter's row to the ciphertext letter and read the plaintext letter at the top of
-that column. The Visualize tab draws this table and lights the row, the column and
-the crossing for each letter.
-
-Two things follow from this, and both matter.
-
-**The same plaintext letter becomes different ciphertext letters.** The two Ts in
-ATTACK come out as X and F, because they met different key letters. This is what
-kills the simple frequency count that breaks Caesar, since the peaks get smeared
-out.
-
-**The same ciphertext letter comes from different plaintext letters.** This means
-that no single substitution table can describe the message. There are as many
-tables as there are letters in the key.
-
-The key advances on letters only. A space does not consume a key letter, so the
-key stays lined up with the letters of the message rather than with its spacing.
-
-## Where it still appears
-
-Nowhere serious, but the idea is everywhere. A repeating key stream XORed against
-data, which means combined with it bit by bit using exclusive or, is exactly
-Vigenere in base 2. That construction turns up in homemade "encryption" in shipped
-software with depressing regularity, and the failure below is its failure too.
+- Write the key under the message and repeat it as needed. Each key letter is a shift: A = 0, L = 11.
+- For example, ATTACKATDAWN with the key LEMON gives **LXFOPVEFRNHR**.
+- On paper, use the Vigenère table. The ciphertext letter is where the plaintext column meets the key row. The Visualize tab draws this table.
+- The same letter encrypts differently each time, so letter counts flatten. A space does not use up a key letter.
 
 ## How this breaks
 
-The key space is not the problem this time. A key of eight letters gives 26^8
-possibilities, about 209 billion, and trying all of them is not the attack. In
-fact, the attack cares far less about the length of the key than a user would
-hope.
-
-**The key repeats, so the cipher is really several Caesars.** If the key has 8
-letters, then letters 1, 9, 17 and 25 of the message were all shifted by the same
-amount. Those letters, pulled out on their own, form a plain Caesar cipher, and
-frequency analysis breaks a Caesar cipher instantly. Therefore, once the key
-length is found, the message collapses into a handful of easy problems. This is
-the whole attack, and everything else is just finding that number.
-
-**Repeated words give the key length away.** Friedrich Kasiski published this in
-1863. If a common word lands on the same part of the key twice, it encrypts to the
-same ciphertext twice. The distance between those two repeats must be a multiple
-of the key length. By collecting several such distances and taking their common
-divisors, the key length usually becomes obvious.
-
-**The letters are too clumpy to be random.** Pick two letters at random from
-English text and the chance that they match is about 6.7%. From random letters, it
-is 3.8%. This number is the **index of coincidence**, and it survives being
-enciphered. When the ciphertext is sliced into columns for a guessed key length
-and the guess is right, each column is English-shaped and the index jumps back
-towards 6.7%. William Friedman published this in 1922, and it needs no repeated
-words at all. The Attack tab runs both methods and tries the lengths that either
-one suggests.
-
-**A short key on a long message is the worst case.** The only real requirement of
-the attack is enough letters per column. A five-letter key on a paragraph gives
-each column forty-odd samples, which is plenty. On one short sentence, however,
-the Attack tab fails, and that failure implies something: the cipher is strongest
-when the key is nearly as long as the message. Taken all the way, to a random key
-exactly as long as the message and never reused, this becomes the one-time pad,
-which genuinely cannot be broken. Everything between here and there is a
-compromise.
-
-In the end, the general lesson is that **a pattern in the key becomes a pattern in
-the ciphertext.** Vigenere is not weak because its arithmetic is bad, as the
-arithmetic is fine. It is weak because the key has structure, and structure is
-what an attacker eats.
+- **The key repeats.** If the key length is n, every nth letter is a plain Caesar cipher.
+- **The key length can be found.** Kasiski's method (1863) uses the distances between repeated groups. Friedman's index of coincidence (1922) is the other method. The Attack tab uses both.
+- **A short message defeats the attack.** It needs enough letters per column. A random key as long as the message, used once, is the one-time pad.
 `.trim();
 
 const vigenereCipher: CipherModule = {
@@ -137,6 +57,16 @@ const vigenereCipher: CipherModule = {
       default: 'DECEPTIVE',
       placeholder: 'Letters only. Spaces and punctuation are ignored',
       randomise: { alphabet: 'letters', length: 6 },
+    },
+  ],
+  quizzes: [
+    {
+      question: 'Use the table: encrypt ATTACKATDAWN with the keyword LEMON.',
+      run: { input: 'ATTACKATDAWN', params: { key: 'LEMON' } },
+    },
+    {
+      question: 'Encrypt "we are discovered save yourself" with the keyword deceptive.',
+      run: { input: 'wearediscoveredsaveyourself', params: { key: 'DECEPTIVE' } },
     },
   ],
   examples: [

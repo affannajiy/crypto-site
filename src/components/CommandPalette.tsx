@@ -16,7 +16,7 @@ import { SECURITY, ciphers, groupLabelOf, searchCiphers } from '../ciphers/regis
  * matching rules would be a second search engine to keep honest.
  *
  * The pages that are not ciphers are listed here rather than derived, because
- * there are four of them and no registry to read. If that list grows past a
+ * there are five of them and no registry to read. If that list grows past a
  * handful it wants the same treatment the ciphers got.
  */
 interface Destination {
@@ -32,6 +32,12 @@ const PAGES: readonly Destination[] = [
     title: 'Catalogue',
     detail: 'Every entry, grouped by family',
     hay: 'catalogue home ciphers browse family',
+  },
+  {
+    to: '/timeline',
+    title: 'Timeline',
+    detail: 'The same entries, in the order they happened',
+    hay: 'timeline history chronological year era',
   },
   {
     to: '/compare',

@@ -20,8 +20,8 @@ Non-goals, enforced:
 
 ## Course scope
 
-The site shows only the ciphers of the owner's course syllabus: Lectures 03 to 05 and Labs 03
-to 07 of Dr Low's cryptography slides. There are sixteen:
+The site shows only the ciphers of the owner's course syllabus: Lectures 03 to 06 and Labs 03
+to 07 of Dr Low's cryptography slides. There are twenty:
 
 | Lecture | Shown |
 | --- | --- |
@@ -29,6 +29,7 @@ to 07 of Dr Low's cryptography slides. There are sixteen:
 | 03, stream | One-Time Pad (the Vernam pad in the notes, with a letters mode and a Vernam XOR mode), Salsa20, ChaCha20, RC4, A5/1 |
 | 04, block | Feistel, DES, Triple DES, AES, with ECB, CBC, CFB, OFB and CTR inside each block cipher |
 | 05, public key | RSA, with Lab 07's digital signature on its Visualize tab |
+| 06, hash functions | MD5, SHA-1, SHA-256, SHA-512. Lecture 06's toy signature and toy collision are on RSA's Visualize tab. |
 
 The other entries stay in the repository. They are hidden, not deleted.
 
@@ -40,7 +41,11 @@ disk-encryption software, not an algorithm. The RSA explainer says so.
 Every explainer of a shown cipher has a "Lecture note" section where the slides or labs say
 something worth checking. Where a slide or lab sheet is wrong, the page shows the correct
 result and names the slip. Examples: the lab's rail fence answer IELVASOI, Lab 05's e = 65537
-with φ(n) = 160, and the lecture's "MD5 matrix" for MDS.
+with φ(n) = 160, the lecture's "MD5 matrix" for MDS, and Lecture 06's "Cloud" hash. The ASCII codes
+of "Cloud" sum to 503, not 471. Therefore H = 41, which does not fit under n = 14.
+
+PBKDF2 stays hidden. The slides do not mention it. The hashing family sorts last, because
+Lecture 06 comes after the public-key lecture.
 
 - `COURSE_SLUGS` in `registry.ts` is the list of shown ciphers.
 - `ciphers` is the shown list. Every page reads it.
@@ -54,6 +59,32 @@ with φ(n) = 160, and the lecture's "MD5 matrix" for MDS.
 - `CipherWorkbench` opens every page on its first non-error example: that example's message and
   key. A fixed English sentence opened the Feistel page (binary) and RSA (numbers) on an error.
 - `params.test.ts` randomises each cipher against its own first example, for the same reason.
+
+### Lecture quizzes
+
+`CipherModule.quizzes` holds the quiz questions of the slides. The Visualize tab shows them under
+the picture, in `LectureQuizzes`.
+
+- A quiz is **computed** (`run`: a message, a key and a direction) or **recall** (`answer`:
+  prose). The registry refuses a quiz that has both or neither.
+- A computed answer is the cipher's own output. It is never typed in by hand, because the slides
+  have slips.
+- `src/ciphers/quiz.ts` is React-free. It runs a quiz and marks an answer. Case, spaces and
+  punctuation do not count.
+- `quiz.test.ts` runs every quiz and pins the answers that the slides print.
+- Only the slides' own quizzes and worked examples go here. Do not invent quiz questions.
+- Every shown cipher also gets practice questions from `practiceQuizzes` in `quiz.ts`. Each has
+  a word from a fixed list, a key from the cipher's own randomiser, and the cipher's own answer.
+  A practice question is computed, never prose. Therefore nothing in it is invented.
+- `LectureQuizzes` shuffles the slide quizzes and three practice questions together.
+  "New questions" draws fresh practice questions.
+- `quiz.test.ts` runs practice questions for every shown cipher. A decrypt answer must encrypt
+  back to the shown ciphertext.
+
+AES's Visualize tab also has `AesByHand`: SubBytes (45 → 6e) and MixColumns worked by the
+slide's 02 and 03 rules. The arithmetic is in `aes/byHand.ts` and uses the cipher's own `SBOX` and
+`xtime`. Its button "Use column 1 of this round" appears only when the hand result equals the
+cipher's MixColumns output. A decryption round and the final round therefore never offer it.
 
 ## Commands
 
@@ -229,9 +260,8 @@ teach that identification is a button. It would also be wrong often enough to ma
 Three more pages read the registry and add no field to the contract. That was the test they
 had to pass. A page that needed a cipher to declare something for it would be the wrong page.
 
-**`/timeline`** is the catalogue by date. It is out of the nav and the command palette, because
-a course list makes a poor timeline. The route still works. `src/lib/chronology.ts` is React-free
-and tested. It
+**`/timeline`** is the catalogue by date. It is in the nav and the command palette.
+`src/lib/chronology.ts` is React-free and tested. It
 parses the free-text `year` into a sort key. `parseYear` negates BC. It sorts `'1500s'` from
 1500. It returns **`null` rather than a guess** for `'ancient'`. Therefore Affine sits in a
 "no date at all" section, and no century is invented for it. `ERAS` is deliberately uneven.
@@ -267,13 +297,20 @@ cipher page.
 - **One direction control applies to every row.** Decrypt is there so that a student can paste
   a ciphertext and see which row reads as English. A decrypt on one row and an encrypt on
   another is two unrelated runs that share a text box. Therefore the rows never mix.
-- A one-way module has no row, because it cannot decrypt.
+- The hash functions have their own section at the end. They have no decrypt. In decrypt
+  mode the section hides, with one line that says why. Therefore no row ever runs in the other
+  direction.
+- **One mode select drives every block cipher row.** A row is a block cipher if one of its
+  selects offers `MODE_OPTIONS`, the exact array from `lib/modes.ts`. The row's own controls leave
+  that select out. Three ciphers in five modes as separate rows would be fifteen rows.
+  `MODE_SUMMARY` in `lib/modes.ts` is the lecture's table of strength, weakness and uses. The mode
+  diagram and the Playground both read it.
 - The cipher name is a plain link to its page. The key does not travel with it. That needs
   share-by-URL state, which is held back.
 
 `CommandPalette` (Ctrl/Cmd+K, mounted in `Layout`) reaches any page from anywhere. It matches
 through `searchCiphers`. It therefore inherits the rules of the catalogue, instead of becoming
-a second search engine to keep honest. The four non-cipher pages are a literal list inside it,
+a second search engine to keep honest. The five non-cipher pages are a literal list inside it,
 because there is no registry to read. Past a handful, that list wants the treatment the
 ciphers got.
 
@@ -465,10 +502,16 @@ Functionality over beauty. The screen should explain the algorithm, not decorate
 
   A highlighted character is near-black on `marker-wash` with a `marker-line` underline.
   Therefore colour is never the only signal.
-- **Body prose uses `.cl-prose`**: full width, `text-align: justify`, `hyphens: auto`.
-  Justifying is a deliberate house choice against the usual advice. `hyphens: auto` is what
-  stops it from opening rivers of whitespace. Drop one and you must drop both. Do not cap
-  prose with `max-w-prose`. Sections use the full column.
+- **Body prose uses `.cl-prose`**: full width, `hyphens: auto`, and `text-align: justify` from
+  640 px up. Below 640 px it is left-aligned, because a phone column has too few words per line
+  and justify opened large gaps. Do not cap prose with `max-w-prose`. Sections use the full
+  column.
+- **Copy is minimal.** A page intro is one sentence. A component explains itself in a few
+  words, not a paragraph. Long reasoning belongs in the explainer, not in the chrome.
+- "At a glance" (`CipherFacts`) is a closed `<details>`. Therefore on a phone the tool comes first.
+- An explainer is about 150 words, and every section is open. It has a one-line intro, then
+  "How it works", "Lecture note" (only where the slides need one) and "How this breaks".
+  Each section is a few short bullets. Keep every slide slip, one bullet each.
 - Use monospace for ciphertext, keys, hex and step details. Use sans for prose.
 - Use native elements with real `<label>`s. Do not build a div button. Every control must be
   keyboard-operable. Nothing may be smaller than 24×24 CSS px. The page must not scroll
@@ -630,7 +673,7 @@ cannot be reversed. The problem is that the output is not a message at all.
 
 ## Roadmap and scope discipline
 
-**Thirty-nine entries are in the repository, in five families. Sixteen are shown.** The folder
+**Thirty-nine entries are in the repository, in five families. Twenty are shown.** The folder
 tree is the curriculum. This table is what is in it. Shown entries are in **bold**.
 
 | Family | Group | Entries |
@@ -645,7 +688,7 @@ tree is the curriculum. This table is what is in it. Shown entries are in **bold
 | | Perfect secrecy | **One-Time Pad** |
 | Symmetric | Stream | **Salsa20**, **ChaCha20**, **RC4**, **A5/1** |
 | | Block | **Feistel**, **DES**, **Triple DES**, **AES** |
-| Hashing | Digests | MD5, SHA-1, SHA-256, SHA-512, PBKDF2 |
+| Hashing | Digests | **MD5**, **SHA-1**, **SHA-256**, **SHA-512**, PBKDF2 |
 | Asymmetric | Public key | **RSA** |
 | | Key exchange | Diffie-Hellman |
 

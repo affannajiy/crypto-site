@@ -23,81 +23,26 @@ function readShift(p: Params): number {
 }
 
 const explainer = `
-Caesar is the cipher that everyone meets first, and it is roughly two thousand
-years old. Suetonius records that Julius Caesar used it for military
-correspondence, whereby each letter moved three places along the alphabet.
+Every letter slides a fixed number of places along the alphabet. Julius Caesar used a shift of 3.
 
 ## How it works
 
-Firstly, pick a number from 1 to 25. This number is the **shift**. Then move every
-letter that many places forward, wrapping round from Z back to A. To read the
-message, the receiver moves the same number of places back.
-
-That is the whole algorithm. Encrypting with a shift of 3 and decrypting with a
-shift of 23 are the same operation, which hints at how little the key is really
-doing.
-
-The wrapping has a name: **modular arithmetic**, which is the alphabet counted
-modulo 26. The step trace shows it as a plain addition or subtraction of 26,
-because that is easier to check by eye. However, "27 becomes 1" and "27 mod 26 =
-1" are the same fact, and every cipher after this one is built on the second
-phrasing.
-
-Anything that is not a letter from A to Z is left exactly as it was. Spaces stay
-spaces, commas stay commas, and the digit 4 stays the digit 4. This keeps the
-output readable, and it is also the first thing that leaks.
-
-## Where it still appears
-
-**ROT13** is Caesar with a shift of 13, and it is still used to hide a spoiler or
-a punchline in plain sight. It protects nothing, and that is the point of it.
-ROT13 is a politeness convention, not a cipher.
+- Pick a **shift** from 1 to 25.
+- Move each letter that many places forward, wrapping from Z to A. That is addition modulo 26.
+- To decrypt, move back by the same shift.
+- Spaces, digits and punctuation pass through unchanged.
 
 ## Lecture note
 
-The lecture draws Caesar as two alphabets, the second shifted three places, with
-A→D, B→E and C→F. That is the first example above, and the Visualize tab draws the
-same table. The lecture uses Caesar as the example of **confusion**, which is
-Shannon's word for substitution.
-
-Lab 03, Experiment 1, calls this cipher a "monoalphabetic substitution cipher".
-That is true, but it is not the whole of the class. Every Caesar shift is
-monoalphabetic, because one fixed alphabet serves the whole message. But only 25 of
-the 26! monoalphabetic keys are shifts. The Monoalphabetic page shows the general
-case, where the key is any shuffle of the alphabet.
+- The lecture's table, A→D, B→E, C→F, is a shift of 3. That is the first example.
+- The lecture uses Caesar as its example of **confusion**, which means substitution.
+- Lab 03 calls Caesar "monoalphabetic". That is true, but only 25 of the 26! monoalphabetic keys are shifts. The Monoalphabetic page shows the general case.
 
 ## How this breaks
 
-There are three ways, in rising order of how little effort they take.
-
-**The key space is 25.** Not 25 million, and not 2 to the power of anything.
-Twenty-five. A person can try all of them by hand in a few minutes, and the Attack
-tab does it instantly. A cipher whose every key can be tried is not a cipher, but
-an inconvenience. Modern ciphers answer this with key spaces of around 2^128,
-which is not a bigger version of the same idea. It is a different category of
-number.
-
-**Letter frequencies survive.** Shifting the alphabet moves the frequency
-distribution, but it does not flatten it. E is the most common letter in English,
-so whichever letter is most common in the ciphertext is probably E, and the gap
-between the two is the key. The Attack tab scores each of the 25 candidates with a
-chi-squared test, which measures how far a set of letter counts sits from the
-counts expected in English. On any full sentence, the real key ranks first. On
-five letters, however, it fails, since frequency analysis needs volume. Seeing it
-break is worth more than seeing it work.
-
-**The shape of the message leaks.** Word lengths, punctuation, capital letters at
-the start of sentences, and apostrophes before a final S all pass straight
-through. Even without touching a letter, a reader can often guess "I'm" or "the"
-from the pattern alone. This is why real ciphers work on bytes rather than
-letters, and why a modern one hides the length of the message as well as its
-content.
-
-In the end, the general lesson is the one that matters: **secrecy of the method is
-not security.** Caesar is not weak because its method is known. It is weak because
-knowing the method costs an attacker a few seconds of computation. Kerckhoffs
-wrote that down in 1883, and every cipher since has been designed to stay safe
-while published.
+- **There are only 25 keys.** The Attack tab tries every one of them instantly.
+- **Letter frequencies survive.** The most common ciphertext letter is probably E. The Attack tab ranks each key by chi-squared, which needs a sentence or more of text.
+- **The shape of the message leaks.** Word lengths and punctuation pass straight through.
 `.trim();
 
 const caesarCipher: CipherModule = {

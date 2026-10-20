@@ -48,10 +48,11 @@ export default function CipherFacts({ cipher }: { cipher: CipherModule }) {
   const heading = groupLabelOf(cipher.slug);
 
   return (
-    <section aria-labelledby="facts-heading" className="cl-card px-4 py-4">
-      <h2 id="facts-heading" className="text-sm font-semibold uppercase tracking-wide text-ink-subtle">
+    // Closed by default, so on a phone the tool is the first thing under the title.
+    <details className="cl-card px-4 py-3">
+      <summary className="min-h-6 cursor-pointer text-sm font-semibold uppercase tracking-wide text-ink-subtle">
         At a glance
-      </h2>
+      </summary>
 
       <dl className="mt-3 flex flex-col">
         <Fact term="Family">
@@ -67,14 +68,6 @@ export default function CipherFacts({ cipher }: { cipher: CipherModule }) {
           <span className="mt-0.5 block text-ink-muted">{SECURITY[cipher.security].summary}</span>
         </Fact>
       </dl>
-
-      <p className="mt-3 border-t border-line pt-3 text-sm text-ink-muted">
-        Every entry here carries a{' '}
-        <a href="#explainer-heading" className="underline underline-offset-4 hover:text-ink">
-          How this breaks
-        </a>
-        section, below. This one is no exception.
-      </p>
-    </section>
+    </details>
   );
 }

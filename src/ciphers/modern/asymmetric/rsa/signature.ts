@@ -57,3 +57,64 @@ export function verify(message: string, signature: bigint, keys: Pick<KeyPair, '
   const recovered = modPow(signature, keys.e, keys.n);
   return { digest, h, recovered, valid: recovered === h };
 }
+
+/**
+ * The toy hash-then-sign example from Lecture 06 (Digital Signature and Hash
+ * Function), slide 17.
+ *
+ *   Alice's keys:  PU = (e, n) = (5, 14),  PR = (d, n) = (11, 14)
+ *   Hash:          H(M) = (sum of the ASCII codes of M) mod 77
+ *   Sign:          S = H(M)^d mod n
+ *   Verify:        S^e mod n == H(M) ?
+ *
+ * Two slips on the slide, which this code does not copy:
+ *
+ * 1. "Cloud" is C 67 + l 108 + o 111 + u 117 + d 100 = 503, not 471. So H is
+ *    503 mod 77 = 41, not 9. The slide's later arithmetic is right for its 9.
+ * 2. H runs up to 76, but n is 14. RSA works on numbers below n, so a hash of
+ *    14 or more is reduced mod 14 inside the exponentiation and cannot come back
+ *    out as itself. Verifying "Cloud" honestly fails. The fix is the one real RSA
+ *    uses: the hash must be smaller than the modulus.
+ *
+ * n = 14 = 2 x 7 is a valid modulus for the arithmetic: φ(14) = 6, and
+ * 5 x 11 = 55 = 1 mod 6. It is only far too small.
+ */
+export const TOY_KEYS = { n: 14n, e: 5n, d: 11n } as const;
+export const TOY_HASH_MODULUS = 77;
+
+export interface ToyHash {
+  codes: { char: string; code: number }[];
+  sum: number;
+  h: number;
+}
+
+export function toyHash(message: string): ToyHash {
+  const codes = Array.from(message).map((char) => ({ char, code: char.codePointAt(0) ?? 0 }));
+  const sum = codes.reduce((acc, c) => acc + c.code, 0);
+  return { codes, sum, h: sum % TOY_HASH_MODULUS };
+}
+
+export interface ToySignature {
+  hash: ToyHash;
+  signature: bigint;
+  /** S^e mod n: what Bob recovers from the signature. */
+  recovered: bigint;
+  /** True when H(M) is not below n, so it cannot survive the round trip. */
+  hashTooBig: boolean;
+  valid: boolean;
+}
+
+export function toySign(message: string): ToySignature {
+  const hash = toyHash(message);
+  const h = BigInt(hash.h);
+  const signature = modPow(h, TOY_KEYS.d, TOY_KEYS.n);
+  const recovered = modPow(signature, TOY_KEYS.e, TOY_KEYS.n);
+  return { hash, signature, recovered, hashTooBig: h >= TOY_KEYS.n, valid: recovered === h };
+}
+
+/** The slide's collision hash: A = 1, B = 2, ... Z = 26, added up. "ABC" and "F" both give 6. */
+export function letterSum(message: string): number {
+  return Array.from(message.toUpperCase())
+    .filter((c) => c >= 'A' && c <= 'Z')
+    .reduce((acc, c) => acc + c.charCodeAt(0) - 64, 0);
+}

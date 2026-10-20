@@ -9,6 +9,7 @@
  * and it branches on the mode, never on the cipher.
  */
 import type { Step } from '../ciphers/types';
+import { MODE_SUMMARY, type Mode } from '../lib/modes';
 
 interface ChainBlock {
   block: number;
@@ -39,39 +40,6 @@ export function readChain(steps: Step[]): ChainBlock[] {
   }
   return out;
 }
-
-const SUMMARY: Record<string, { title: string; strength: string; weakness: string; uses: string }> = {
-  ECB: {
-    title: 'ECB — Electronic Codebook',
-    strength: 'Simple, and every block can be done in parallel.',
-    weakness: 'Identical plaintext blocks give identical ciphertext blocks, so patterns show through.',
-    uses: 'Legacy systems. Only safe for one block of random data.',
-  },
-  CBC: {
-    title: 'CBC — Cipher Block Chaining',
-    strength: 'Each ciphertext block depends on every plaintext block before it.',
-    weakness: 'Encryption is sequential, so slower. No integrity, and padding errors can leak.',
-    uses: 'TLS (older versions), BitLocker, FileVault, VPNs.',
-  },
-  CFB: {
-    title: 'CFB — Cipher Feedback',
-    strength: 'Encrypts a stream as it arrives, and resynchronises one block after an error.',
-    weakness: 'A bit error garbles the rest of its block and the whole of the next one.',
-    uses: 'Secure voice, virtual machine disk encryption.',
-  },
-  OFB: {
-    title: 'OFB — Output Feedback',
-    strength: 'The keystream never sees the message, so it can be computed ahead of time.',
-    weakness: 'No integrity: flip one ciphertext bit and exactly that plaintext bit flips.',
-    uses: 'Noisy or unreliable channels, remote access systems.',
-  },
-  CTR: {
-    title: 'CTR — Counter',
-    strength: 'Fast, and every block is independent, so it runs in parallel both ways.',
-    weakness: 'No integrity, and a counter value must never repeat under one key.',
-    uses: 'SSD encryption, network protocols, and inside AES-GCM.',
-  },
-};
 
 /** Fixed geometry: the diagram scrolls inside its card rather than shrinking. */
 const COL = 200;
@@ -245,7 +213,7 @@ export default function ModeChain({
   cipherName: string;
 }) {
   const blocks = readChain(steps);
-  const summary = SUMMARY[mode];
+  const summary = MODE_SUMMARY[mode as Mode];
   if (blocks.length === 0 || summary === undefined) return null;
 
   const repeats = (b: ChainBlock) => mode === 'ECB' && blocks.some((other) => other !== b && other.cipher === b.cipher);

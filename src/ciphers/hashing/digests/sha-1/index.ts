@@ -15,60 +15,24 @@ import { sha1, sha1Trace } from './sha1';
 import Stages from './Stages';
 
 const explainer = `
-SHA-1 turns any message into 160 bits. It signed most of the web's certificates
-for a decade, it is still what \`git\` names a commit with, and it has been broken
-since 2017.
+A 160-bit hash from 1995. Web certificates used it for a decade, and git still uses it. It has been broken since 2017.
 
-It stands between [MD5](#/cipher/md5) and [SHA-256](#/cipher/sha-256), and reading
-the three in order is the clearest way to see what "strengthening a hash" actually
-means:
+## How it works
 
-    MD5       128 bits    4 words    64 rounds   no message expansion
-    SHA-1     160 bits    5 words    80 rounds   16 words expanded to 80
-    SHA-256   256 bits    8 words    64 rounds   16 to 64, with two rotations
+- It works like MD5, but wider: five 32-bit words and 80 steps. The 16 message words are expanded to 80.
+- The steps are four stages of 20, each with its own function and constant.
+- SHA-0 (1993) did not have one \`rotate left 1\` in the message schedule. The Visualize tab hashes your message with both.
 
-The eighty rounds come in four stages of twenty, each with its own non-linear
-function and its own constant — the Visualize tab lists them.
+## Lecture note
 
-## The rotation that made it SHA-1
-
-The NSA published this algorithm in 1993, then withdrew it two years later and
-reissued it with **one change**: a \`rotate left 1\` added to the message schedule.
-No explanation was given at the time. In 1998 Chabaud and Joux published an attack
-on the original that the rotation defeats, which answered the question.
-
-The Visualize tab computes both versions of your message, because a one-line
-difference producing two unrelated digests is worth seeing rather than being told.
+- The lecture table says 80 iterations and 20 rounds. SHA-1 has 4 rounds of 20 steps, which is 80 steps in total.
+- The table says SHA-1 "appears not to be vulnerable". That is out of date. There has been a practical collision since 2017, and a chosen-prefix collision since 2019.
 
 ## How this breaks
 
-**Collisions.** In February 2017 Google and CWI published *SHAttered*: two
-different PDF files with the same SHA-1 digest. It cost roughly 2^63 SHA-1
-computations — about 6,500 CPU-years, run in parallel. Expensive, and entirely
-affordable for anyone who wanted it.
-
-Then it got worse:
-
-- **2019, chosen-prefix.** Leurent and Peyrin produced a collision where *both*
-  prefixes are chosen by the attacker. That is the difference between "here are
-  two odd files that happen to collide" and "here is a forged version of the
-  specific document you were about to sign".
-- **Cheaper every year.** The cost of that attack has only fallen since. It never
-  goes the other way.
-
-What follows, in practice:
-
-- **Certificates.** Browsers stopped accepting SHA-1 certificates in 2017. That
-  was late, not early.
-- **Signatures.** A signature covers a digest. If two documents share one, a
-  signature on either is a signature on both, and the signer only ever saw one.
-- **git.** Object names are SHA-1, so a repository is a place where two different
-  blobs could claim the same name. git added a collision-detection variant that
-  refuses the known attack pattern, and is migrating to SHA-256 — a migration
-  that is still not finished.
-
-SHA-1 is fine only where nobody is trying to fool you and there is no better
-option to hand. There is almost always a better option to hand.
+- **SHAttered (2017)** made two PDFs with the same digest. It took about 2⁶³ work.
+- **The chosen-prefix collision (2019)** lets an attacker forge a version of a document that the attacker chooses.
+- **It is being replaced.** Browsers stopped accepting SHA-1 certificates in 2017, and git is moving to SHA-256.
 `;
 
 const sha1Cipher: CipherModule = {

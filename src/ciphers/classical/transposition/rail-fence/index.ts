@@ -23,92 +23,26 @@ function readRails(p: Params): number {
 }
 
 const explainer = `
-Rail Fence is the first cipher here that does not substitute anything. Caesar and
-Vigenere both answer the question "what does this letter become". Rail Fence
-answers a different one: **"where does this letter go"**. Every character survives
-untouched, and only the order changes.
-
-That family of cipher is called a **transposition**, and it is worth meeting
-early, because it fails in a completely different way from everything before it.
+Letters are not changed, only reordered on a zigzag. This kind of cipher is called a **transposition**.
 
 ## How it works
 
-Firstly, pick a number of rails. Then write the message in a zigzag down and up
-across them, one character per column:
-
-- Rail 1: **W . . . E . . . C . . . R . .**
-- Rail 2: **. E . R . D . S . O . E . E .**
-- Rail 3: **. . A . . . I . . . V . . . D**
-
-Next, read the rails off one at a time, left to right and top to bottom: WECR,
-then ERDSOEE, then AIVD. The ciphertext is **WECRERDSOEEAIVD**.
-
-To decrypt, the receiver rebuilds the same empty fence, which needs only the
-length of the message and the rail count. The ciphertext is then written back
-along the rails, and the zigzag is read off.
-
-This cipher is a **permutation** and nothing more, which is a rule for shuffling
-positions. That is the whole of it, and the Visualize tab draws exactly that: the
-same character marked on the fence where it was written and in the readout where
-it lands.
-
-Every character takes part here, spaces and punctuation included. Historically,
-the spacing was stripped out first, and keeping it makes the cipher weaker rather
-than stronger, because the count and placement of spaces is evidence that an
-attacker can use. It is kept here because the cipher then preserves the message
-exactly, so the message can be seen surviving intact inside the scramble.
-
-## Where it still appears
-
-Transposition on its own is finished as a cipher, but it did not disappear.
-Instead, it got absorbed. Modern block ciphers are built by alternating
-substitution with **permutation**, over and over, in what is called a
-substitution-permutation network. AES does this ten to fourteen times. The idea
-below the zigzag is still running in the encryption on every phone, except that it
-never runs alone.
+- Write the message in a zigzag down and up across the rails.
+- Read each rail from left to right, top rail first. WEAREDISCOVERED on 3 rails gives **WECRERDSOEEAIVD**.
+- To decrypt, rebuild the empty fence from the length and the rail count. Fill the rails, then read the zigzag.
+- Spaces and punctuation count as characters here.
 
 ## Lecture note
 
-The lecture example is "meet me after the toga party" at depth 2, which gives
-MEMATRHTGPRYETEFETEOAAT. That is the first example above. The quiz asks for the
-same text at depth 4, and for the HELLOWORLD diagram, which reads HOLELWRDLO.
-
-Lab 03 writes ILOVEIAS on 3 rails and gives the ciphertext as IELVASOI. The rails
-actually read I·E, L·V·I·S and O·A, so the correct ciphertext is **IELVISOA**. The
-lab's answer swaps two letters. Load the lab example and check each rail on the
-Visualize tab.
+- "meet me after the toga party" at depth 2 gives MEMATRHTGPRYETEFETEOAAT.
+- HELLOWORLD on 3 rails gives HOLELWRDLO.
+- Lab 03 gives ILOVEIAS on 3 rails as IELVASOI. The correct answer is **IELVISOA**. The lab swaps two letters.
 
 ## How this breaks
 
-**Frequency analysis stops working, and that is not good news.** This is the
-interesting part. The attack that breaks Caesar and Vigenere counts letters, and
-against this cipher it is worth precisely nothing, since the ciphertext has
-exactly the same letters as the plaintext, in the same quantities. Every candidate
-decryption scores identically. An attacker who knew only that one technique would
-conclude that the cipher was strong. It is not, and the attacker was simply
-holding the wrong tool.
-
-**Counting pairs works instead.** Transposition preserves letters and destroys
-*adjacency*, which is which letter sits next to which. English is full of TH, HE,
-IN and ER and almost devoid of QZ or JX, so a wrong arrangement manufactures pairs
-that English would never write. The Attack tab scores each candidate on its letter
-pairs rather than its letters, and the right rail count stands out immediately.
-The lesson generalises: **the right statistic depends on what the cipher
-destroys.**
-
-**The key space is absurd.** The key is a small whole number. This app offers 2 to
-10, and even unbounded, it can never usefully exceed the length of the message.
-Nine guesses is not a key space, and the Attack tab tries all of them faster than
-this sentence can be read.
-
-**The characters are all still there.** Not one of them changed. An attacker who
-suspects a transposition can confirm it in seconds by checking whether the letter
-distribution already matches English, before trying a single key. A cipher that
-announces its own family has already lost its first secret.
-
-All in all, the general lesson is that **rearranging is not hiding.** A
-transposition alone leaks everything about *what* was written while concealing
-only the order, and the order turns out to be the easier half to reconstruct.
+- **Letter counts do not help.** Every candidate has the same letters, so chi-squared gives them all the same score.
+- **Letter pairs do help.** A wrong arrangement makes pairs such as QZ. The Attack tab scores the bigram fit of every rail count.
+- **The key space is tiny.** There are only 2 to 10 rails.
 `.trim();
 
 const railFenceCipher: CipherModule = {
@@ -132,6 +66,16 @@ const railFenceCipher: CipherModule = {
       min: MIN_RAILS,
       max: MAX_RAILS,
       default: 2,
+    },
+  ],
+  quizzes: [
+    {
+      question: 'What is the encrypted text of "meet me after the toga party" with a rail fence of depth 2?',
+      run: { input: 'meetmeafterthetogaparty', params: { rails: 2 } },
+    },
+    {
+      question: 'What is the encrypted text if the rail fence depth is 4?',
+      run: { input: 'meetmeafterthetogaparty', params: { rails: 4 } },
     },
   ],
   examples: [

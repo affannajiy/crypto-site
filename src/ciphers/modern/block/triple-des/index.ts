@@ -35,67 +35,28 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-Triple DES, or TDEA, runs **DES three times** on every block. By the late 1990s a
-56-bit key could be searched in days, but banks and governments had DES in
-hardware everywhere. 3DES kept that hardware and that algorithm and multiplied
-the key.
-
-## How it works
-
-Lab 04 gives the scheme exactly:
+Triple DES runs DES three times on every block, to stretch DES's 56-bit key.
 
     ciphertext = E(K3, D(K2, E(K1, plaintext)))
     plaintext  = D(K1, E(K2, D(K3, ciphertext)))
 
-Encrypt with K1, **decrypt** with K2, encrypt with K3. To decrypt, do the
-reverse: decrypt with K3, encrypt with K2, decrypt with K1. Each pass is the
-ordinary DES on the DES page, all sixteen rounds of it. The Visualize tab shows
-the value between every pass, and opens the DES ladder for any one of them.
+## How it works
 
-## Why the middle step decrypts
-
-If K1 = K2, the first two passes cancel, and what is left is single DES under K3.
-So a 3DES device could still talk to an old DES device. Choose the **one-key**
-option and encrypt the classic DES vector 0123456789ABCDEF with key 133457799BBCDFF1:
-the answer is 85E813540F0AB405, exactly the DES answer.
-
-## The keying options
-
-| Option | Keys | Key bits | Lab 04 says |
-| --- | --- | --- | --- |
-| 1 | K1, K2, K3 all different | 168 (56 × 3) | Strongest, but meet-in-the-middle still applies |
-| 2 | K3 = K1 | 112 | NIST has deprecated this option |
-| 3 | K1 = K2 = K3 | 56 | Only for backward compatibility with DES |
-
-The numbering above is the lab's. The lab's own keys are K1 = 133457799BBCDFF1,
-K2 = 0123456789ABCDEF and K3 = K1, so they are **option 2**. That is the first
-example. Each key is given in the lab as 64 binary digits, and the same keys are
-written here in hex: 0001 0011 0011 0100 … is 1 3 3 4 …
+- Encrypt with K1, decrypt with K2, then encrypt with K3. Each pass is full DES.
+- If K1 = K2, the first two passes cancel and the result is single DES. This lets 3DES talk to old DES hardware.
+- **Option 1:** three different keys, 168 bits.
+- **Option 2:** K3 = K1, 112 bits. The lab's keys use this option.
+- **Option 3:** one key, 56 bits, for DES compatibility.
 
 ## Lecture note
 
-The lab says option 1 resists a meet-in-the-middle attack that "requires 2² × 56
-steps". The exponent is garbled. It means **2^(2×56) = 2¹¹²** steps. That is why
-three 56-bit keys give about 112 bits of security, not 168. In the same way,
-double DES needs only about 2⁵⁷ work, not 2¹¹², which is why nobody uses two
-passes.
+- The lab says meet-in-the-middle "requires 2² × 56 steps". It means **2^(2×56) = 2¹¹²**. Therefore three keys give about 112 bits of security, not 168.
 
 ## How this breaks
 
-**Meet in the middle.** Encrypt a known plaintext forward under every K1 and store
-the results. Decrypt the ciphertext backward under every K3 and look for a match
-in the middle. Splitting the work this way means three keys cost about 2¹¹²
-instead of 2¹⁶⁸. That is still far beyond reach, so this is not how 3DES fell.
-
-**The block is too small.** 3DES has the 64-bit block of DES. After about 2³²
-blocks, around 32 GB, two ciphertext blocks are likely to collide in CBC mode, and
-a collision leaks the XOR of two plaintext blocks. The **Sweet32** attack used this
-against real HTTPS and OpenVPN connections in 2016. A key length does not help
-here at all: the problem is the block.
-
-**And it is slow.** Three DES passes per block made 3DES about three times slower
-than DES, which was already slow in software. AES replaced it, and NIST withdrew
-3DES entirely in 2023. There is no Attack tab, because neither attack is a button.
+- **Meet in the middle** costs 2¹¹². That is still out of reach.
+- **The 64-bit block is too small.** After about 32 GB, blocks collide. The Sweet32 attack of 2016 used this.
+- **It is slow.** NIST withdrew 3DES in 2023. There is no Attack tab, because neither attack is a button.
 `.trim();
 
 const tripleDesCipher: CipherModule = {

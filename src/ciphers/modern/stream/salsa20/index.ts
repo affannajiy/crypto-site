@@ -18,85 +18,20 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-Salsa20 is the stream cipher Daniel J. Bernstein published in 2005. The lecture
-lists it first among its stream cipher examples, and names ChaCha20 as its
-"modified version". In 2008 the European eSTREAM project chose Salsa20/12 for its
-portfolio of software stream ciphers.
+A stream cipher from add, rotate and XOR. Daniel J. Bernstein published it in 2005.
 
 ## How it works
 
-Build a 4 × 4 grid of sixteen 32-bit words. The four constant words, which spell
-"expand 32-byte k", go on the **diagonal**. The 256-bit key fills eight cells
-around them. The 64-bit nonce and a 64-bit block counter fill the middle:
-
-    const  key    key    key
-    key    const  nonce  nonce
-    count  count  const  key
-    key    key    key    const
-
-Then run twenty rounds. Each round is four **quarter-rounds**, and each
-quarter-round mixes four words with nothing but addition, rotation and XOR:
-
-    b ^= (a + d) <<< 7
-    c ^= (b + a) <<< 9
-    d ^= (c + b) <<< 13
-    a ^= (d + c) <<< 18
-
-Odd rounds mix the four **columns**. Even rounds mix the four **rows**. After all
-twenty, add the starting grid back in, word by word. The 64 bytes that result are
-keystream. XOR them into 64 bytes of the message, add 1 to the counter, and do the
-next block. Decryption is the same XOR.
-
-The Visualize tab shows the grid at every stage, and which cells each
-quarter-round touches.
-
-## Salsa20 and ChaCha20
-
-ChaCha20 is the lecture's other example, and it is Salsa20 changed in four small
-ways. Open the two pages side by side to compare.
-
-| | Salsa20 | ChaCha20 |
-| --- | --- | --- |
-| Constants | On the diagonal | Along the top row |
-| Rounds | Columns, then rows | Columns, then diagonals |
-| Quarter-round | Each word updated once; rotations 7, 9, 13, 18 | Each word updated twice; rotations 16, 12, 8, 7 |
-| Nonce and counter | 64-bit nonce, 64-bit counter | 96-bit nonce, 32-bit counter (RFC 8439) |
-
-Each change spreads a flipped bit faster, round for round. That is why ChaCha20
-replaced Salsa20 in TLS 1.3, SSH and WireGuard. The design idea is unchanged.
-
-## Why "add, rotate, XOR"
-
-The design has no S-box, so it has no table to look up. A table lookup takes a
-different time depending on what is in the cache, and that timing difference has
-leaked AES keys in real attacks. Addition, rotation and XOR take the same time
-whatever the data. So the same code is fast and safe from cache-timing attacks
-on any CPU, including CPUs with no AES instructions. This is the lecture's
-"software and hardware implementations".
-
-## Test vectors
-
-The tests check the quarter-round and the full 64-byte function against the
-examples in Bernstein's specification, for both a 256-bit and a 128-bit key. A
-128-bit key fills the key cells twice, with the constant "expand 16-byte k".
+- Build a 4×4 grid of 32-bit words: four constants on the diagonal (they spell "expand 32-byte k"), a 256-bit key, a 64-bit nonce and a 64-bit counter.
+- Run twenty rounds of quarter-rounds. Odd rounds mix the columns. Even rounds mix the rows. Then add the starting grid back.
+- The 64-byte result is keystream. XOR it with the message. Add 1 to the counter for each block. Decryption is the same XOR.
+- **ChaCha20 differs in four ways.** Its constants are on the top row. It mixes columns, then diagonals. Its rotations are 16, 12, 8, 7, not 7, 9, 13, 18. Its nonce is 96 bits.
 
 ## How this breaks
 
-**It does not, as far as anyone knows.** The best published attack breaks 8 of
-the 20 rounds. That is why there is no Attack tab, as on AES and ChaCha20.
-
-**A repeated nonce breaks it completely.** Encrypt two messages with the same key,
-nonce and counter, and they share a keystream. XOR the two ciphertexts and the
-keystream cancels, which leaves the XOR of the two plaintexts. That is the
-one-time pad used twice. A 64-bit nonce is too short to choose at random safely
-for many messages, which is why XSalsa20 extends it to 192 bits.
-
-**There is no integrity.** Flip a ciphertext bit and exactly that plaintext bit
-flips, with nothing to detect it. Real systems pair Salsa20 with the Poly1305 MAC,
-as in NaCl's secretbox, and ChaCha20 with Poly1305 in TLS.
-
-**This file is for reading, not for use.** It has had none of the care a real
-implementation needs.
+- **There is no practical break.** The best attack reaches 8 of the 20 rounds. That is why this page has no Attack tab.
+- **A repeated nonce repeats the keystream.** XOR the two ciphertexts and you get the XOR of the two plaintexts.
+- **There is no integrity.** Pair it with the Poly1305 MAC.
 `.trim();
 
 const salsa20Cipher: CipherModule = {

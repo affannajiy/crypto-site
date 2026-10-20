@@ -84,8 +84,7 @@ export default function AttackPanel({
             onChange={(e) => setCiphertext(e.target.value)}
           />
           <p className="cl-prose mt-2 text-xs text-ink-subtle">
-            Frequency analysis needs volume. A sentence usually works; five letters usually will
-            not, and watching that fail is the point.
+            Needs a sentence or more.
           </p>
         </div>
 
@@ -112,8 +111,7 @@ export default function AttackPanel({
 
       {state.status === 'idle' && (
         <p className="cl-card px-4 py-6 text-center text-sm text-ink-subtle">
-          Nothing has been attacked yet. Paste a ciphertext above and press{' '}
-          <span className="font-medium text-ink-muted">Break it</span> to try every key.
+          Paste a ciphertext, press <span className="font-medium text-ink-muted">Break it</span>.
         </p>
       )}
 
@@ -126,8 +124,7 @@ export default function AttackPanel({
 
       {applied !== null && (
         <p role="status" className="cl-prose text-sm text-ink-muted">
-          <span className="font-semibold text-ink">{applied}</span> is now set under Key and
-          settings, above the tabs. Open the Encrypt tab to run it.
+          Key set to <span className="font-semibold text-ink">{applied}</span>.
         </p>
       )}
 

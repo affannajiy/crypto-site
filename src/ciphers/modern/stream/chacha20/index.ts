@@ -30,98 +30,26 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-AES is a **block cipher**: it transforms your data, sixteen bytes at a time.
-ChaCha20 is a **stream cipher** and it never touches your data at all.
+A stream cipher: ciphertext = plaintext XOR keystream(key, nonce, counter). Bernstein published it in 2008 to improve Salsa20.
 
-It generates a pseudorandom **keystream** from the key, a nonce and a counter, and
-the ciphertext is simply the plaintext XORed with it:
+## How it works
 
-    ciphertext = plaintext XOR keystream(key, nonce, counter)
-
-That is the **One-Time Pad's construction**, with a keystream that is computed
-rather than shared. The entire gap between "provably unbreakable" and "unbreakable
-as far as anyone can tell" is that a pad's key is genuinely random and a stream
-cipher's key only *looks* random. The One-Time Pad page on this site is the same
-XOR with a different source of keystream.
-
-Two consequences fall straight out. **Encryption and decryption are the same
-operation**, because XOR undoes itself. And there is **no padding**, so the
-ciphertext is exactly as long as the plaintext — which is convenient, and which
-also means the length leaks.
-
-## Inside it
-
-Sixteen 32-bit words in a 4×4 grid: four fixed constants that spell
-*expand 32-byte k*, eight words of key, one counter word, three words of nonce.
-Twenty rounds of one operation, the **quarter-round**, applied first down the four
-columns and then along the four diagonals. Then the original state is added back in.
-
-The quarter-round is **add, XOR, rotate**. That is the whole vocabulary — no
-S-box, no lookup table, no branch that depends on the data. Which is the point:
-
-**ChaCha20 is constant-time by construction.** A table-based AES is not. Its S-box
-lookups touch different cache lines depending on the data, and an attacker who can
-measure cache timing can recover the key — a published, practical attack, which is
-why the AES page on this site warns you not to use its own code. AES on modern
-desktop chips is safe because the *hardware* implements it. ChaCha20 needs no such
-help, which is why it is preferred on phones, embedded devices and anything without
-AES instructions, and why TLS 1.3 offers both.
-
-**The final addition is not decoration.** Twenty rounds of add-XOR-rotate are
-reversible. Without adding the starting state back in, anyone could run the rounds
-backwards from the keystream and read the key out of the state.
+- Build a 4×4 grid of 32-bit words: four constants on the top row, eight key words, one counter word and three nonce words.
+- Run twenty rounds of quarter-rounds (add, XOR, rotate): columns, then diagonals.
+- Add the starting state back. Without that step, the rounds could be run backwards to the key.
+- Encryption and decryption are the same XOR. There is no padding, so the length leaks.
+- There is no S-box, so it runs in constant time. That is why phones without AES hardware use it.
 
 ## Lecture note
 
-The lecture lists ChaCha20 as "the modified version of Salsa20" and notes that
-TLS 1.3 supports it. Both are right. Bernstein published ChaCha in 2008 as a
-variant of his own Salsa20. It moves the constants to the top row, mixes columns
-then diagonals instead of columns then rows, and updates each word twice in a
-quarter-round. Each change spreads a flipped bit faster. The Salsa20 page has a
-table of every difference.
-
-TLS 1.3 offers ChaCha20 with the Poly1305 MAC as one of its five cipher suites.
-Phones without AES hardware use it, because add, rotate and XOR are fast on any
-processor.
+- The lecture calls it "the modified version of Salsa20" and says TLS 1.3 supports it. Both are correct. TLS 1.3 uses ChaCha20-Poly1305.
 
 ## How this breaks
 
-**Not by cryptanalysis.** The best public attack reaches seven of the twenty
-rounds. There is no practical break, and there is no Attack tab for the same reason
-there is none on the AES page.
-
-**By reusing a nonce, and this is not a small mistake.** It is total. Two messages
-encrypted under the same key and nonce share a keystream, so XORing the two
-ciphertexts cancels it exactly and leaves the XOR of the two plaintexts — with the
-key never involved. The Visualize tab does this live: type two messages and watch
-the two lines come out identical.
-
-This is the **same failure** that broke reused One-Time Pads, that let the Venona
-project read Soviet traffic for decades, that broke ADFGVX, and that breaks
-AES-GCM today. A nonce is not a password. It does not need to be secret, it does
-not need to be unpredictable, and it absolutely must be **used once**. Random
-96-bit nonces are safe for a very long time; a counter is safe if it is genuinely
-never repeated, which is harder than it sounds across restarts, backups and
-virtual-machine snapshots.
-
-**A stream cipher has no integrity whatsoever, and it is worse than a block
-cipher here.** Flip a bit in the ciphertext and *exactly that bit* flips in the
-plaintext — nothing else changes, and nothing detects it. An attacker who knows
-where the amount field is in your message can change 100 to 900 without ever
-decrypting anything. This is not a subtle risk; it is arithmetic.
-
-The answer is **ChaCha20-Poly1305**, which adds a message authentication code, and
-that is what actually ships in TLS. **It is not implemented here.** This page is
-the stream cipher alone, so that the XOR and the nonce are visible; authentication
-is a different subject and deserves its own page rather than being smuggled in
-under this one. Do not read a bare stream cipher as a usable construction.
-
-**And the counter runs out.** ChaCha20's block counter is 32 bits, so one
-key-and-nonce pair covers 2³² × 64 bytes — about 256 GB. Past that the counter
-wraps and the keystream repeats, which is nonce reuse arriving on its own.
-
-**This code is for reading, not for use.** It has had none of the care a real
-implementation needs.
+- **There is no practical break.** The best attack reaches 7 of the 20 rounds.
+- **A reused nonce breaks it completely.** Two messages share one keystream. The Visualize tab shows this.
+- **There is no integrity.** Flip a ciphertext bit and the same plaintext bit flips. ChaCha20-Poly1305 fixes this. Poly1305 is not implemented here.
+- **The counter runs out.** The 32-bit counter covers about 256 GB for one key and nonce.
 `.trim();
 
 const chachaCipher: CipherModule = {

@@ -137,8 +137,7 @@ export default function BenchmarkPanel({
 
       {result === null && error === null && (
         <p className="cl-card px-4 py-6 text-center text-sm text-ink-subtle">
-          No measurement yet. Pick a size and run it — the numbers become useful once there is
-          a second cipher to compare against.
+          No measurement yet.
         </p>
       )}
 
@@ -171,26 +170,11 @@ export default function BenchmarkPanel({
 
       <div className="w-full text-sm text-ink-muted">
         {cipher.benchmark === undefined ? (
-          <p className="cl-prose">
-            <strong className="font-semibold text-ink-strong">What this number is not.</strong> This
-            cipher has no untraced path, so what ran was the teaching implementation: one step
-            object per character, with a sentence of English inside it. That allocation dominates
-            the measurement, so this is the speed of the trace, not of the algorithm.
-          </p>
+          <p>Timed with the step trace, so slower than the bare algorithm.</p>
         ) : (
-          <p className="cl-prose">
-            <strong className="font-semibold text-ink-strong">What this number is.</strong> This
-            cipher offers an untraced path and that is what ran, so no step objects were built and
-            no English was written. It is the algorithm as this app implements it — still written
-            for legibility rather than speed, and still not comparable to an optimised library.
-          </p>
+          <p>Timed without the trace. Still slower than a real library.</p>
         )}
-        <p className="cl-prose mt-3">
-          It is a fair comparison <em>between</em> ciphers here only when both measured the same
-          way, which the row above names. It says nothing at all about whether a cipher is secure.
-          Fast and broken is the normal state of a classical cipher, and{' '}
-          <em>deliberately slow</em> is the entire point of a password hash.
-        </p>
+        <p className="mt-1">Speed says nothing about security.</p>
       </div>
     </div>
   );

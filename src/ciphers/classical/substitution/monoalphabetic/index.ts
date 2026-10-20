@@ -20,52 +20,24 @@ function readKey(p: Params): string {
 }
 
 const explainer = `
-Write the alphabet out. Under it, write the same 26 letters in any order. That
-second row is the key.
+Each letter is swapped for the letter under it in a shuffled alphabet.
 
     plain:  a b c d e f g h i j k l m n o p q r s t u v w x y z
     key:    D K V Q F I B J W P E S C X H T M Y A U O L R G Z N
 
-To encrypt, find each letter of the message in the top row and write down the
-letter under it, whereby \`if we wish\` becomes \`WI RF RWAJ\`. To decrypt, go
-from the bottom row back up.
+## How it works
 
-To illustrate how this relates to the others, Caesar is this cipher with the
-bottom row forced to be the top row slid along. Atbash is this cipher with the
-bottom row reversed, and Affine is this cipher with the bottom row set by a
-formula. Here, the bottom row is free, so there are
-
-    26! = 403,291,461,126,605,635,584,000,000
-
-possible keys, about 4 × 10²⁶. That is more than 2⁸⁸, which is more keys than DES
-had. As a result, no one will ever try them all.
+- The key is all 26 letters, in any order. That gives 26! ≈ 4 × 10²⁶ keys, which is more than DES has.
+- To encrypt, find each letter in the top row and write down the letter under it. \`if we wish\` becomes \`WI RF RWAJ\`.
+- To decrypt, go from the bottom row back up.
+- Caesar is the special case where the bottom row is the alphabet slid along.
 
 ## How this breaks
 
-**It does not matter how many keys there are.** Each plaintext letter always
-becomes the same ciphertext letter, so the letter frequencies of English survive
-intact and are only relabelled. E is about 12% of English text, so the most common
-ciphertext letter is probably E, followed by T and A. Furthermore, THE is the most
-common three-letter word, so a common three-letter group that ends in the guessed
-E is probably THE. Now three letters are known, and each guess makes the next one
-easier.
-
-That process is **frequency analysis**. Al-Kindi described it in the ninth
-century, and it breaks this cipher on a paragraph of text with pencil and paper.
-The Analyse page counts the letters automatically, whereby a ciphertext from here
-can be pasted in and its shape compared with English.
-
-**The shape of the message leaks too.** Spaces, punctuation and capitals pass
-straight through. A one-letter word is almost certainly A or I, and an apostrophe
-followed by one letter is probably S or T.
-
-This page has no Attack tab. A computer does not try 26! keys either. Instead, it
-starts from a frequency guess and swaps pairs of key letters for as long as the
-result looks more like English, which is a hill-climbing program rather than a
-button. The lesson is already complete without it: **a huge key space is
-necessary, but not sufficient.** The key has to hide the statistics of the
-message, and one fixed alphabet cannot. Therefore, the polyalphabetic ciphers,
-starting with Vigenère, are the attempt to fix exactly this.
+- **It falls to frequency analysis.** A letter always becomes the same letter, so English letter counts survive, only relabelled. E, T, A and the word THE fall first. Al-Kindi described the method in the 9th century.
+- **The shape of the message leaks.** A one-letter word is A or I.
+- **This page has no Attack tab.** The real attack is a program that swaps key letters while the text keeps looking more like English. To count the letters, paste the ciphertext into Analyse.
+- **A huge key space is not enough.** One fixed alphabet cannot hide the statistics.
 `.trim();
 
 const monoalphabeticCipher: CipherModule = {

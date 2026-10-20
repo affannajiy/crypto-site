@@ -160,6 +160,32 @@ export interface CipherExample {
   demonstratesError?: boolean;
 }
 
+/**
+ * A quiz question from the lecture slides, shown under the Visualize tab.
+ *
+ * There are two kinds, and a quiz is exactly one of them:
+ *
+ * - **Computed.** `run` is a message and a key. The answer is whatever this
+ *   cipher outputs for them. It is never typed in by hand, so a slip in the
+ *   slides cannot become a wrong answer on the page, and a test runs every one.
+ * - **Recall.** `answer` is prose, for a question that asks for a fact rather
+ *   than a calculation: "What is the block size of DES?".
+ */
+export interface LectureQuiz {
+  /** The question, close to how the slide asks it. */
+  question: string;
+  run?: {
+    input: string;
+    /** Merged over the cipher's defaults, as an example's key is. */
+    params?: Params;
+    /** Defaults to encrypt. */
+    direction?: 'encrypt' | 'decrypt';
+  };
+  answer?: string;
+  /** A line shown with the answer: what the slide says, or why the answer looks odd. */
+  note?: string;
+}
+
 export interface CipherModule {
   /** URL-safe and unique across the registry: 'caesar'. */
   slug: string;
@@ -200,6 +226,12 @@ export interface CipherModule {
    * cipher with no worked example is a form the reader has to guess at.
    */
   examples?: CipherExample[];
+  /**
+   * The slide quizzes about this cipher. Optional: most ciphers have none.
+   * The Visualize tab shows them under the picture, shuffled in with random
+   * practice questions that every cipher gets from `practiceQuizzes`.
+   */
+  quizzes?: LectureQuiz[];
   /**
    * Params that let this cipher take an ordinary English message, merged over
    * its first example's key.

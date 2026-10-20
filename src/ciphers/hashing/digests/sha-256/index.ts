@@ -16,72 +16,26 @@ import { sha256, sha256Trace } from './sha256';
 import Avalanche from './Avalanche';
 
 const explainer = `
-Everything else in this app can be undone. Give a cipher the key and the ciphertext
-and the message comes back. A hash has no key, no ciphertext and no way back: it
-takes a message of any length and returns exactly 256 bits, and those bits are all
-you get.
+A one-way function: any message goes in and 256 bits come out. There is no key and no way back.
 
-That is not a limitation to work around. It is what makes it useful. If a digest
-could be reversed it would be a compression algorithm, and 256 bits cannot hold a
-novel.
+## How it works
 
-## What it actually does
+- Pad the message (a 1 bit, zeros, then the length) and split it into 64-byte blocks.
+- Expand each block to 64 words. Run 64 rounds over eight 32-bit words.
+- Add the result to the block's starting values. That addition is the one-way step.
+- The constants come from the cube roots of primes, and the starting values from square roots. Therefore nothing is hidden in them.
+- **Avalanche:** change one letter and about half the bits flip. The Visualize tab shows this.
 
-The message is padded — a 1 bit, some zeros, and the original length written into
-the last eight bytes — and then chopped into 64-byte blocks. Each block is expanded
-into sixty-four 32-bit words, and those words are stirred into eight running values
-over sixty-four rounds:
+## Lecture note
 
-    a b c d e f g h
-     \\ \\ \\ \\ \\ \\ \\
-      shift along, and
-      e += d + T1
-      a  = T1 + T2
-
-where **T1** folds in the round's message word and its constant, and **T2** folds
-the top half back into itself. Watch the Visualize tab: every round moves every
-word, so a bit that enters at round three has touched all eight by round ten.
-
-The constants are the fractional parts of cube roots of primes, and the initial
-values the square roots. They are chosen to be *arbitrary* — "nothing up my sleeve"
-numbers, so that nobody can be accused of picking them to hide a weakness.
-
-## Where the information goes
-
-Here is the part worth pausing on. The sixty-four rounds are **reversible**: given
-the state after round sixty-four and the message schedule, you could run them
-backwards. The one-way step is the last line of each block, where the result is
-*added* to the values the block started with. Addition throws away the carry, two
-different inputs can add to the same output, and that is the whole trick.
-
-## The avalanche
-
-Change one character of the message and roughly half of the 256 output bits flip.
-Not a few near the change — half, everywhere, with no pattern. The Visualize tab
-shows both digests bit by bit. A hash where a small change made a small difference
-would let an attacker steer, and steering is what breaking a hash means.
+- Lecture 06 names SHA-256 as deterministic, one-way and collision-resistant, but gives no detail.
+- The lecture's toy "sum of the letters" hash is on the Visualize tab of the RSA page.
 
 ## How this breaks
 
-It does not, currently, and that is the honest answer. There is no known practical
-way to find two messages with the same SHA-256 digest, or to find a message with a
-chosen digest. The best published collision attacks reach about 31 of the 64 rounds.
-
-What breaks in practice is everything around it:
-
-- **A hash is not encryption.** It hides nothing you can guess. If the input is a
-  postcode, a date of birth or a password, an attacker hashes every candidate and
-  compares — billions per second on a graphics card. This is why passwords need a
-  *slow*, salted function (bcrypt, scrypt, Argon2, PBKDF2), not SHA-256.
-- **A hash is not a signature.** Anyone can compute one. Proving a message came
-  from you needs a key: that is HMAC or a real signature.
-- **Length extension.** Because the digest *is* the internal state, someone who
-  knows \`sha256(secret + message)\` and the length of \`secret\` can compute
-  \`sha256(secret + message + extra)\` without knowing the secret at all. SHA-256
-  has this property; SHA-3 and HMAC do not. It is the reason \`sha256(secret + data)\`
-  is a broken way to authenticate anything.
-- **Its ancestors fell.** MD5 and SHA-1 were also "no known practical attack",
-  until they were not. SHA-256 looks solid, and so did they.
+- **There is no known practical attack.** The best collision attacks reach about 31 of the 64 rounds.
+- **A hash is not encryption.** An attacker can hash every guess of an input such as a password. Passwords need a slow, salted function.
+- **Length extension:** sha256(secret + message) can be extended without the secret. Use HMAC instead.
 `;
 
 const sha256Cipher: CipherModule = {

@@ -90,8 +90,7 @@ export default function RoundTripCheck({
         <div>
           <h3 className="text-sm font-semibold text-ink-strong">Round trip</h3>
           <p className="mt-0.5 text-sm text-ink-muted">
-            {direction === 'encrypt' ? 'Encrypt' : 'Decrypt'} this, then {other} the result, and
-            compare it with what you typed.
+            {direction === 'encrypt' ? 'Encrypt' : 'Decrypt'}, then {other} back.
           </p>
         </div>
         <button
@@ -110,17 +109,14 @@ export default function RoundTripCheck({
         <div role="status" className="mt-3 border-t border-line pt-3 text-sm">
           {verdict.kind === 'exact' && (
             <p className="text-ink">
-              <span className="font-semibold text-ink-strong">Exact.</span> Every character came
-              back, including spacing and punctuation.
+              <span className="font-semibold text-ink-strong">Exact.</span> Every character came back.
             </p>
           )}
           {verdict.kind === 'lossy' && (
             <>
               <p className="text-ink">
                 <span className="font-semibold text-ink-strong">Recovered, but not identical.</span>{' '}
-                The letters are all there in order. Spacing, case or punctuation did not survive,
-                because this cipher normalises its input before it starts. This is also why real
-                intercepts of these ciphers arrive as unbroken blocks of capitals.
+                The letters survive; spacing, case or punctuation did not.
               </p>
               <p className="mt-2 break-words font-mono text-xs text-ink-muted">
                 {verdict.recovered}

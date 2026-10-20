@@ -21,12 +21,9 @@ function readPad(p: Params): boolean {
 }
 
 const explainer = `
-Firstly, write the message across a grid, row by row. Then read it back out **down
-the columns**, but not from left to right. The key sets the order, whereby the
-column numbered 1 is read first, then 2, and so on.
+Write the message in rows. Then read the columns out in the order that the key gives.
 
     Key:        4 3 1 2 5 6 7
-                -------------
                 a t t a c k p
                 o s t p o n e
                 d u n t i l t
@@ -34,93 +31,22 @@ column numbered 1 is read first, then 2, and so on.
 
     Ciphertext: TTNAAPTMTSUOAODWCOIXKNLYPETZ
 
-Column 3 is headed 1, so \`ttna\` comes out first. Column 4 is headed 2, so
-\`aptm\` comes next, and so on across the key. The message ran out after \`am\`,
-so the last row is filled with \`x y z\` to make a full rectangle.
+## How it works
 
-The key can also be a **keyword**. The place of each letter in the alphabet sets
-the number of its column, so \`KEYWORD\` gives \`3 2 7 6 4 5 1\`, whereby D is
-first, E is second and K is third. In short, a keyword is only a way to remember
-the numbers.
-
-This is the same family as Rail Fence, as no letter is ever replaced, only moved.
-What changed is the key. Rail Fence hides one number between 2 and 10, whereas
-this cipher hides an *arrangement*, and arrangements multiply fast. The table
-below shows how fast.
-
-| Columns | Possible orders |
-| --- | --- |
-| 3 | 6 |
-| 5 | 120 |
-| 7 | 5,040 |
-| 9 | 362,880 |
-| 12 | 479,001,600 |
-
-## Padding, or a ragged last row
-
-The filler letters are not part of the message, and decrypting cannot tell them
-apart from it. They come back at the end of the plaintext, and the reader drops
-them.
-
-Setting the last row to **ragged** leaves the grid unfilled, which is how many
-senders actually did it. In this case, the columns are different heights, and the
-Visualize tab draws the empty cells with a dashed border. An attacker who guesses
-the column order correctly but the column lengths wrongly gets nonsense. Padding,
-on the other hand, makes the lengths stop being a secret at all, which is easier
-to write and easier to break.
+- Write the message in rows under the key. Read the column numbered 1 first, then 2, and so on.
+- A keyword works too: alphabetical order sets the numbers. KEYWORD gives 3 2 7 6 4 5 1.
+- **Last row** fills the gap with x, y, z or leaves it short. Decrypting keeps the filler.
 
 ## Lecture note
 
-The lecture example is the key 4 3 1 2 5 6 7 on "attack postponed until two am",
-padded with x, y and z. The ciphertext is TTNA APTM TSUO AODW COIX KNLY PETZ.
-That is the first example above.
-
-The lecture also introduces transposition with WORLD → RLDOW, written as the
-order (3, 4, 5, 2, 1). That is one row of five columns, read in the order 3, 4,
-5, 2, 1. As a Row Transposition key, that order is **54123**: column 3 is read
-first, so it gets rank 1. Column 4 gets rank 2, and so on. The second example
-loads it.
+- "attack postponed until two am" with the key 4 3 1 2 5 6 7 gives TTNA APTM TSUO AODW COIX KNLY PETZ.
+- WORLD → RLDOW uses the order (3, 4, 5, 2, 1). As a key, that order is **54123**. The second example loads it.
 
 ## How this breaks
 
-**A short key can be searched exhaustively, and the Attack tab does it.** It tries
-every order for every width up to ${MAX_ATTACK_WIDTH} columns and ranks them by
-how English the result looks. What is being counted matters here. It is not letter
-frequencies, since a transposition leaves those untouched and every candidate
-would score identically. Instead, it counts **adjacent pairs**. What this cipher
-destroys is which letters sit next to which, so that is what the attack measures.
-Past ${MAX_ATTACK_WIDTH} columns, the search stops being practical here, which is
-the honest limit of a brute force.
-
-**However, the real break never needed a search.** Two messages of the *same
-length* in the *same key* are laid out on identical grids, so the same column
-order shuffles both the same way. When one is written under the other, the columns
-can be slid around until both read as English at once. This technique is called
-**multiple anagramming**, and it works no matter how long the key is. It is the
-same shape of failure as reusing a one-time pad, whereby the algorithm is fine,
-and using the key twice is what gives it away.
-
-**Transposition alone leaves the letters lying there.** The letter counts of any
-ciphertext from this page are the letter counts of ordinary English, at about 12%
-E and about 9% T. That immediately tells an attacker that the message is a
-transposition rather than a substitution, which halves the problem before it
-starts. It also means that a crib works. A crib is a word the attacker believes is
-in the message, so if GENERAL is in there, all seven of its letters are somewhere
-in the ciphertext.
-
-**Anagramming beats it by hand.** With a plausible guess at the number of columns,
-a person with squared paper can cut the ciphertext into columns and physically
-shuffle them until words appear. This was routine field work, not a feat.
-
-**Doing it twice helps, but not enough.** Transposing the ciphertext a second time
-with the same key scrambles it much more thoroughly. Nevertheless, it is still a
-single fixed permutation that the same methods eventually undo.
-
-To wrap up, the lesson is the one that keeps recurring: **moving letters is not
-enough, and replacing letters is not enough.** Each destroys one kind of structure
-and leaves the other intact. Serious ciphers do both, repeatedly, and that is
-exactly what a round of a modern block cipher like AES is: a substitution step and
-a permutation step, applied over and over.
+- **The Attack tab searches every column order up to ${MAX_ATTACK_WIDTH} columns.** It ranks each order by bigram fit. Past ${MAX_ATTACK_WIDTH} columns, the search stops.
+- **Two messages in one key break it by multiple anagramming.** They must be the same length. Slide their columns until both read as English. This works for any key length.
+- **The letter counts are still English.** That tells the attacker that this is a transposition.
 `.trim();
 
 const rowTranspositionCipher: CipherModule = {

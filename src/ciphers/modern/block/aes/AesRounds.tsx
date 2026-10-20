@@ -19,6 +19,8 @@
 import { useState } from 'react';
 import type { Params, Step } from '../../../types';
 import ModeChain from '../../../../components/ModeChain';
+import AesByHand from './AesByHand';
+import { hex2, mixColumnByHand, readColumn } from './byHand';
 
 interface RoundData {
   round: number;
@@ -61,6 +63,25 @@ function readBlocks(steps: Step[]): BlockData[] {
     });
   }
   return out;
+}
+
+/**
+ * Column 1 going into this round's MixColumns, for the by-hand panel.
+ *
+ * Offered only when multiplying it by hand gives the column the cipher wrote
+ * after MixColumns. A decryption round runs the inverse steps in another order,
+ * and the final round has no MixColumns, so neither is offered rather than
+ * shown as a sum that the cipher never did.
+ */
+function liveColumnOf(round: RoundData): string | null {
+  if (round.afterShift === null || round.afterMix === null) return null;
+  const column = round.afterShift.slice(0, 8);
+  try {
+    const byHand = mixColumnByHand(readColumn(column)).map((r) => hex2(r.output)).join('');
+    return byHand === round.afterMix.slice(0, 8).toLowerCase() ? column : null;
+  } catch {
+    return null;
+  }
 }
 
 /** 32 hex digits as 16 byte strings. */
@@ -234,6 +255,8 @@ export default function AesRounds({ steps, params }: { steps: Step[]; params: Pa
           </label>
         )}
       </div>
+
+      <AesByHand liveColumn={liveColumnOf(round)} />
 
       <ModeChain steps={steps} mode={mode} cipherName="AES" />
     </div>

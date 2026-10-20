@@ -17,69 +17,21 @@ function readKey(p: Params) {
 }
 
 const explainer = `
-RC4 is the stream cipher that Ron Rivest designed for RSA Security in 1987. It
-was a trade secret until someone posted it anonymously in 1994. It is ten lines
-long, it needs no tables, and it is fast in software. So it went everywhere:
-**WEP and WPA on wireless networks**, SSL and TLS, Microsoft Office, PDF and
-Kerberos. The lecture lists it with Salsa20, ChaCha20 and A5 as its examples of
-stream ciphers.
+A stream cipher by Ron Rivest, from 1987. It is ten lines long, and WEP and SSL/TLS used it.
 
 ## How it works
 
-The whole state is **S**, a shuffled list of the 256 byte values, plus two
-indices i and j.
-
-**Key scheduling.** S starts as 0, 1, 2, …, 255. Then for each i from 0 to 255:
-
-    j = (j + S[i] + key[i mod keylength]) mod 256
-    swap S[i] and S[j]
-
-**Keystream.** For each byte of the message:
-
-    i = (i + 1) mod 256
-    j = (j + S[i]) mod 256
-    swap S[i] and S[j]
-    K = S[(S[i] + S[j]) mod 256]
-
-The ciphertext byte is the plaintext byte XOR K. Decryption is the same
-operation, because XORing with K twice gives back the original. The Visualize
-tab draws S as a 16 × 16 grid and steps through the swaps.
-
-## A stream cipher is a one-time pad with a computed key
-
-This is the idea the lecture's stream-cipher slide makes. The one-time pad is
-unbreakable, but its key must be as long as the message and shared in advance. A
-stream cipher shares a short key instead, and **generates** a long keystream from
-it. The cost is that the keystream is no longer random. It is only as good as the
-generator, and RC4's generator is poor.
-
-The test vectors are the published ones: the key "Key" turns "Plaintext" into
-BBF316E8D940AF0AD3, and RFC 6229 gives the keystream for the key 0102030405.
+- The state S holds the 256 byte values. The key schedule shuffles them.
+- Each step, all mod 256: add 1 to i, add S[i] to j, swap S[i] and S[j], then output K = S[S[i] + S[j]].
+- The ciphertext is plaintext XOR K. Decryption is the same operation.
+- The test vector: the key "Key" turns "Plaintext" into BBF316E8D940AF0AD3.
 
 ## How this breaks
 
-**The keystream is biased.** The second output byte is 0 about twice as often as
-it should be, for any key. Other early bytes lean towards other values. The
-Visualize tab measures the first of these live. With enough ciphertexts of the
-same plaintext, an attacker counts the ciphertext bytes, and the commonest one
-gives the plaintext byte away. In 2013 and 2015 this recovered HTTPS cookies and
-passwords from real TLS connections.
-
-**The key schedule leaks the key.** If the key is a secret joined to a value the
-attacker can see, the first keystream bytes reveal the secret a little at a time.
-This is the **Fluhrer, Mantin and Shamir** attack of 2001. WEP built every packet
-key as a 24-bit public IV followed by the Wi-Fi password. So capturing a few tens
-of thousands of packets recovered the password, and by 2007 that took under a
-minute. WEP's failure is the reason WPA2 uses AES.
-
-**There is no nonce.** RC4 takes only a key. Encrypt two messages under the same
-key and the keystreams are identical. XOR the two ciphertexts and the keystream
-cancels, which leaves the XOR of the two plaintexts. That is the one-time pad's
-"two-time pad" failure, and protocols had to bolt a per-message key on top.
-
-There is no Attack tab, because every one of these attacks needs many
-ciphertexts, and the attack tab receives one. RFC 7465 has prohibited RC4 in TLS
-since 2015. **Do not use it for anything.**
+- **The keystream is biased.** The second byte is 0 twice as often as it should be. The Visualize tab measures this. The bias recovered HTTPS cookies in 2013 and 2015.
+- **The key schedule leaks the key.** This is the Fluhrer, Mantin and Shamir attack of 2001. WEP built each key from a public IV and the password, so by 2007 it fell in under a minute.
+- **There is no nonce.** The same key gives the same keystream.
+- **There is no Attack tab.** Every attack needs many ciphertexts. RFC 7465 has banned RC4 in TLS since 2015.
 `.trim();
 
 const rc4Cipher: CipherModule = {

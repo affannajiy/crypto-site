@@ -16,56 +16,26 @@ import { md5, md5Trace } from './md5';
 import Collision from './Collision';
 
 const explainer = `
-MD5 turns any message into 128 bits, and for about a decade it was the default
-answer to "how do I fingerprint this". It is still, right now, in more software
-than anyone would like.
+A 128-bit hash by Ronald Rivest, from 1992. It is broken: a collision takes seconds.
 
-It works the way [SHA-256](#/cipher/sha-256) works: pad the message, chop it into
-64-byte blocks, run sixty-four rounds over a small state, add the result back into
-what the block started from. Four rounds of sixteen, each with its own non-linear
-function:
+## How it works
 
-    rounds  1-16   F(b,c,d) = (b AND c) OR (NOT b AND d)
-    rounds 17-32   G(b,c,d) = (d AND b) OR (NOT d AND c)
-    rounds 33-48   H(b,c,d) = b XOR c XOR d
-    rounds 49-64   I(b,c,d) = c XOR (b OR NOT d)
+- Pad the message and split it into 64-byte blocks.
+- Run 64 steps, as 4 rounds of 16, over four 32-bit words. Then add the result back.
+- Each round has its own function: F, G, H or I.
+- The constants are floor(2³² × |sin(i+1)|). MD5 is little-endian, unlike SHA.
 
-The constants are \`floor(2^32 * |sin(i+1)|)\`, which is a nothing-up-my-sleeve
-choice — arbitrary on purpose, and checkable from four lines of code rather than
-sixty-four pasted numbers.
+## Lecture note
 
-One detail catches everyone: MD5 is **little-endian** where SHA-2 is big-endian,
-in the message words and in the digest. Get it backwards and you produce a
-perfectly convincing hash that matches nothing in the world.
+- The lecture table lists 64 iterations and 16 rounds. MD5 has 4 rounds of 16 steps, which is 64 steps in total.
+- The table says MD5 is "vulnerable to cryptanalytic attacks". That is correct, but it understates the problem.
 
 ## How this breaks
 
-It is broken, in the strongest sense available: **collisions are easy**.
-
-Two different messages with the same MD5 digest are on the Visualize tab. They
-were published by Wang and Yu in 2004, they are 128 bytes each, and they differ
-in six of those bytes. A modern laptop finds a fresh pair in seconds.
-
-Why it matters more than it sounds:
-
-- **Append anything.** Once two messages collide, appending the *same* tail to
-  both keeps them colliding — the internal states had already converged. So a
-  collision is not two blobs of noise, it is two entire documents, two installers,
-  two certificates. Try it on the Visualize tab.
-- **A signature signs a digest, not a document.** Every real signature scheme
-  hashes first. If two documents share a digest, a signature on one is a valid
-  signature on the other, and the person who signed never saw the second.
-- **Flame.** In 2012 a chosen-prefix MD5 collision was used to forge a Microsoft
-  code-signing certificate, and the malware that carried it was signed as though
-  Windows Update had written it. This is not a paper attack.
-- **The design did not fail; the margins did.** 128 bits is small — a birthday
-  attack needs only about 2⁶⁴ tries even against a perfect 128-bit hash — and the
-  round function spreads a difference too slowly to stop one being steered.
-
-What MD5 is still, arguably, fine for: spotting an accidentally corrupted download
-where nobody is trying to trick you. The moment an adversary exists, it is over.
-SHA-256 for a fingerprint, HMAC or a signature for authenticity, and Argon2 or
-bcrypt for a password — never this.
+- **Collisions are easy.** In 2004, Wang and Yu published two 128-byte messages that differ in six bytes and have the same digest. They are on the Visualize tab.
+- **The same suffix keeps a collision.** Add the same text to both messages and they still collide. Therefore two whole documents can collide.
+- **The Flame malware used a collision.** In 2012 it forged a Microsoft code-signing certificate.
+- **Use something else.** Use SHA-256 for a fingerprint, HMAC or a signature for authenticity, and Argon2 or bcrypt for a password.
 `;
 
 const md5Cipher: CipherModule = {

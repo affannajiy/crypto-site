@@ -5,6 +5,7 @@ import { textStartParams } from '../ciphers/params';
 import type { CipherModule, ParamSpec, Params } from '../ciphers/types';
 import ParamControls from '../components/ParamControls';
 import { useCipherRun, type Direction } from '../components/useCipherRun';
+import { MODE_OPTIONS, MODE_SUMMARY, readMode, type Mode } from '../lib/modes';
 
 /**
  * One message, every cipher, at the same time.
@@ -28,7 +29,21 @@ import { useCipherRun, type Direction } from '../components/useCipherRun';
  * starts on `textStartParams`, the textbook key with the cipher's own
  * `textParams` on top, so Feistel and RSA read the sentence instead of
  * expecting binary or numbers.
+ *
+ * One mode select drives every block cipher row. A row knows it is a block
+ * cipher because one of its selects offers `MODE_OPTIONS`, the list from
+ * `lib/modes.ts`, not because of its name. Three ciphers in five modes as
+ * separate rows would be fifteen rows; one switch shows the same thing.
+ *
+ * The hash functions sit in their own section at the end. A hash has no
+ * decrypt, so in decrypt mode the section hides and says why, and no row ever
+ * runs in a different direction from the rest.
  */
+
+/** The select that picks a block cipher's mode, if this cipher has one. */
+function modeSpecOf(cipher: CipherModule): ParamSpec | undefined {
+  return cipher.params.find((spec) => spec.kind === 'select' && spec.options === MODE_OPTIONS);
+}
 
 /** The key in one line, for the collapsed row: "Shift 3", "Keyword MONARCHY". */
 function keySummary(specs: readonly ParamSpec[], values: Params): string {
@@ -48,17 +63,24 @@ function Row({
   cipher,
   input,
   direction,
+  mode,
   onDecrypt,
 }: {
   cipher: CipherModule;
   input: string;
   direction: Direction;
+  /** The page's block cipher mode. Ignored by a row with no mode select. */
+  mode: Mode;
   /** Puts this row's ciphertext in the message box and flips every row to decrypt. */
   onDecrypt: (ciphertext: string) => void;
 }) {
-  const [params, setParams] = useState<Params>(() => textStartParams(cipher));
+  const [ownParams, setParams] = useState<Params>(() => textStartParams(cipher));
   const [copied, setCopied] = useState(false);
   const copyButton = useRef<HTMLButtonElement>(null);
+  const modeSpec = modeSpecOf(cipher);
+  const params = modeSpec === undefined ? ownParams : { ...ownParams, [modeSpec.name]: mode };
+  // The mode is set once for the page, so the row's own controls leave it out.
+  const rowSpecs = cipher.params.filter((spec) => spec !== modeSpec);
   const run = useCipherRun(cipher, input, params, direction);
 
   useEffect(() => {
@@ -132,7 +154,7 @@ function Row({
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
-            {direction === 'encrypt' && (
+            {direction === 'encrypt' && cipher.oneWay !== true && (
               <button
                 type="button"
                 className="cl-button"
@@ -151,23 +173,25 @@ function Row({
         </div>
       )}
 
-      <details>
-        <summary className="min-h-6 cursor-pointer text-sm text-ink-muted hover:text-ink">
-          Change the key
-        </summary>
-        <div className="mt-3 flex flex-col gap-3">
-          <ParamControls specs={cipher.params} values={params} onChange={onParamChange} />
-          <div>
-            <button
-              type="button"
-              className="cl-button"
-              onClick={() => setParams(textStartParams(cipher))}
-            >
-              Back to the textbook key
-            </button>
+      {rowSpecs.length > 0 && (
+        <details>
+          <summary className="min-h-6 cursor-pointer text-sm text-ink-muted hover:text-ink">
+            Change the key
+          </summary>
+          <div className="mt-3 flex flex-col gap-3">
+            <ParamControls specs={rowSpecs} values={params} onChange={onParamChange} />
+            <div>
+              <button
+                type="button"
+                className="cl-button"
+                onClick={() => setParams(textStartParams(cipher))}
+              >
+                Back to the textbook key
+              </button>
+            </div>
           </div>
-        </div>
-      </details>
+        </details>
+      )}
     </li>
   );
 }
@@ -177,11 +201,15 @@ export default function Playground() {
   const directionName = useId();
   const [input, setInput] = useState('The quick brown fox jumps over the lazy dog');
   const [direction, setDirection] = useState<Direction>('encrypt');
+  const [mode, setMode] = useState<Mode>('CBC');
+  const modeId = useId();
 
-  // A one-way module has no decrypt, so it cannot sit in a table that has a
-  // Decrypt switch. None of the course ciphers is one, and this keeps it honest
-  // if one is ever shown.
+  // A one-way module has no decrypt. It gets its own section at the end, which
+  // hides in decrypt mode, so no row ever runs in the other direction.
   const reversible = ciphers.filter((cipher) => cipher.oneWay !== true);
+  const oneWay = ciphers.filter((cipher) => cipher.oneWay === true);
+  const hasBlockCiphers = ciphers.some((cipher) => modeSpecOf(cipher) !== undefined);
+  const summary = MODE_SUMMARY[mode];
 
   // The classical techniques first, under the lecture's two headings. Then
   // every other group in catalogue order: the pad, stream, block, public key.
@@ -198,6 +226,16 @@ export default function Playground() {
         (cipher) => techniqueOf(cipher.slug) === undefined && groupLabelOf(cipher.slug) === group.label,
       ),
     })),
+    ...(direction === 'encrypt'
+      ? [
+          {
+            label: 'Hash functions (one-way)',
+            description:
+              'No key and no decrypt. The same message always gives the same digest, of a fixed length however long the message is. Change one letter and about half of the digest changes.',
+            ciphers: oneWay,
+          },
+        ]
+      : []),
   ];
 
   const decryptThis = (ciphertext: string) => {
@@ -211,18 +249,7 @@ export default function Playground() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
           One message, every cipher
         </h1>
-        <p className="cl-prose text-ink-muted">
-          Type a message once and every cipher in the course runs on it. The substitutions change
-          the letters and leave them in place, whereas the transpositions keep the letters and
-          move them. From the stream ciphers onwards the output is no longer letters at all: the
-          stream and block ciphers give bytes, written in hex, Feistel gives bits, and RSA gives
-          one number per character.
-        </p>
-        <p className="cl-prose text-ink-muted">
-          Each row starts on the textbook key, and &ldquo;Change the key&rdquo; opens the controls
-          to try another one. &ldquo;Decrypt this&rdquo; puts a row&rsquo;s ciphertext in the box
-          and switches every row to decrypt, so you can see that only its own cipher reads it.
-        </p>
+        <p className="text-ink-muted">Type once. Every course cipher runs on it, with the lecture key.</p>
       </header>
 
       <div className="flex flex-col gap-2">
@@ -256,11 +283,33 @@ export default function Playground() {
         ))}
       </fieldset>
 
+      {hasBlockCiphers && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor={modeId} className="cl-label">
+            Block cipher mode (every block cipher row)
+          </label>
+          <select
+            id={modeId}
+            value={mode}
+            onChange={(event) => setMode(readMode(event.target.value))}
+            className="cl-field w-full sm:w-auto"
+          >
+            {MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="cl-prose text-sm text-ink-muted">
+            <strong>{summary.title}.</strong> {summary.strength} {summary.weakness} Used in:{' '}
+            {summary.uses} Try ECB on YELLOW SUBMARINE twice.
+          </p>
+        </div>
+      )}
+
       {direction === 'decrypt' && (
         <p role="status" className="cl-prose text-sm text-ink-muted">
-          Paste a ciphertext above. At most one row can be the right cipher with the right key, so
-          every other row is expected to be nonsense or to refuse the input. That is the whole
-          point, whereby the row that reads as English reveals which cipher was used.
+          Paste a ciphertext. The row that reads as English is the cipher used.
         </p>
       )}
 
@@ -276,9 +325,6 @@ export default function Playground() {
               <h2 id={`${directionName}-section-${index}`} className="text-lg font-semibold text-ink-strong">
                 {section.label}
               </h2>
-              {section.description !== '' && (
-                <p className="cl-prose mt-1 text-sm text-ink-muted">{section.description}</p>
-              )}
             </div>
             <ul className="flex flex-col gap-3">
               {section.ciphers.map((cipher) => (
@@ -287,12 +333,19 @@ export default function Playground() {
                   cipher={cipher}
                   input={input}
                   direction={direction}
+                  mode={mode}
                   onDecrypt={decryptThis}
                 />
               ))}
             </ul>
           </section>
         ))}
+
+      {direction === 'decrypt' && oneWay.length > 0 && (
+        <p className="cl-prose text-sm text-ink-muted">
+          Hashes hidden: a hash has no decrypt.
+        </p>
+      )}
     </div>
   );
 }

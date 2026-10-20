@@ -5,6 +5,7 @@ import CommandPalette from './CommandPalette';
 
 const NAV = [
   { to: '/', label: 'Ciphers' },
+  { to: '/timeline', label: 'Timeline' },
   { to: '/compare', label: 'Compare' },
   { to: '/playground', label: 'Playground' },
   { to: '/analyse', label: 'Analyse' },

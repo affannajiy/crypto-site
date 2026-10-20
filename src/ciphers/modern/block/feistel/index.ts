@@ -26,108 +26,29 @@ function readOptions(p: Params) {
 }
 
 const explainer = `
-A **Feistel cipher** is a structure, not one fixed algorithm. Horst Feistel
-proposed it at IBM in the early 1970s, and DES is built on it. It is the lecture's
-way into block ciphers, because the whole idea fits in one 8-bit example.
+A structure, not one cipher. Horst Feistel designed it at IBM in the early 1970s, and DES is built on it.
 
-## How one round works
+    L(i) = R(i-1)
+    R(i) = L(i-1) XOR F(R(i-1), K(i-1))
 
-Split the block into a left half L and a right half R. Then each round does this:
+## How it works
 
-    F(i-1) = F(R(i-1), K(i-1))
-    L(i)   = R(i-1)
-    R(i)   = L(i-1) XOR F(i-1)
+- Put the right half through F with the round key, XOR the result into the left half, then swap the halves. Run one round per key.
+- In the lecture, F is simply **R XOR K**.
+- To decrypt, run the same rounds with the keys in reverse order. F is never run backwards, so F does not need to be invertible.
+- Set *Message* to Text to encrypt a sentence. Each letter is one 8-bit block.
 
-The right half goes through the round function F with this round's key. The
-result is XORed into the left half. Then the halves swap. Repeat for as many
-rounds as there are keys.
+## Lecture note
 
-In the lecture's example, F is simply **R XOR K**. Real ciphers use a much more
-complicated F, but the ladder around it is identical.
-
-## The worked example
-
-The lecture encrypts the 8-bit block **10110110** in 3 rounds with the keys
-**0110, 1100, 1010**. It is the first example above:
-
-    L0 = 1011            R0 = 0110
-    F0 = 0110 XOR 0110 = 0000      L1 = 0110   R1 = 0000 XOR 1011 = 1011
-    F1 = 1011 XOR 1100 = 0111      L2 = 1011   R2 = 0111 XOR 0110 = 0001
-    F2 = 0001 XOR 1010 = 1011      L3 = 0001   R3 = 1011 XOR 1011 = 0000
-    Ciphertext = L3 || R3 = 0001 0000
-
-The Encrypt tab lists each of those lines as a step. The Visualize tab draws the
-ladder with every value in place.
-
-## Decryption
-
-Decryption is the same algorithm with the **round keys in reverse order**. The
-lecture asks you to decrypt the example. Switch the direction to Decrypt and use
-**00010000**: the answer is 10110110.
-
-There is one detail. The worked example joins L3 || R3, with no final swap. So
-the decryption first swaps the halves of the ciphertext, then runs the rounds with
-the keys 1010, 1100, 0110, then swaps again. That is the "left-right switch" on
-the decryption slide.
-
-**The final swap.** The lecture's diagram ends with one more swap, R(n) || L(n),
-and the slide says "some systems" add it. The worked example does not. The *Final
-swap* control lets you try both. With the swap, encryption and decryption are
-literally the same procedure, which is what DES does.
-
-## Why F never has to be undone
-
-Look at a round from the bottom up. If you know L(i) and R(i), then R(i-1) = L(i),
-so you can compute F(R(i-1)) again, *forwards*, and XOR it out of R(i) to get
-L(i-1). F is only ever run forwards. Therefore **F does not need to be
-invertible**, and a designer can make it as destructive as they like. DES's F
-throws information away in its S-boxes, and decryption still works.
-
-## Design features
-
-The lecture's Quiz 1 asks for the design features of a Feistel cipher. There are
-five:
-
-| Feature | Larger or more complex means |
-| --- | --- |
-| Block size | More security, through more diffusion, but slower |
-| Key size | More security against brute force, but slower |
-| Number of rounds | One round is weak; more rounds add security. DES uses 16 |
-| Subkey generation | Harder cryptanalysis |
-| Round function F | More resistance to cryptanalysis |
-
-Use the *Block size* control and add or remove round keys to see the first and
-third of these on the ladder.
-
-## A sentence instead of bits
-
-Set *Message* to **Text** and the box takes an ordinary sentence. Each character
-becomes its UTF-8 byte, so an 8-bit block is one letter and a 16-bit block is two.
-The ciphertext is still binary. Decrypting with *Text* turns the bits back into
-the sentence. The Playground runs this cipher this way.
-
-With 8-bit blocks the same letter always gives the same block, so the ciphertext
-repeats wherever the message does. That is ECB's weakness, at the smallest size.
+- 10110110 with the keys 0110, 1100, 1010 gives **00010000**. Decrypting 00010000 gives 10110110.
+- The worked example joins L3 || R3 with no final swap. The *Final swap* control adds the swap from the diagram.
+- Quiz 1 lists five design features: block size, key size, number of rounds, subkey generation and round function F. Larger is safer but slower.
 
 ## How this breaks
 
-**This F is linear, so this toy breaks with one known plaintext.** XOR is the
-only operation anywhere in it. Every round key ends up XORed into the output as a
-fixed constant. Therefore, for any two plaintexts P and P', the value
-E(P) XOR E(P') does not depend on the key at all.
-
-So an attacker who knows one plaintext and its ciphertext can decrypt any other
-ciphertext without ever learning the keys. This is a **known-plaintext attack**,
-the KPA from Lecture 03. The test suite checks this property directly.
-
-There is no Attack tab, because the attack needs that known pair, and the attack
-tab only receives a ciphertext.
-
-**What a real cipher adds is non-linearity.** DES's F has eight S-boxes, and they
-are the only non-linear part of DES. Without them, DES would fall to the same
-algebra as this toy. Even with them, a few rounds are not enough. Feistel
-networks with three or four rounds have known generic attacks. That is why DES
-uses sixteen rounds, and why "number of rounds" is on the list of design features.
+- **This F is linear.** E(P) XOR E(P') does not depend on the key. Therefore one known plaintext and its ciphertext decrypt everything. This is a known-plaintext attack.
+- **There is no Attack tab.** The attack needs that known pair.
+- **Real ciphers add non-linear S-boxes and more rounds.** DES uses 16.
 `.trim();
 
 const feistelCipher: CipherModule = {
@@ -188,6 +109,18 @@ const feistelCipher: CipherModule = {
     },
   ],
   textParams: { format: 'text' },
+  quizzes: [
+    {
+      question: 'Perform decryption using the encryption example: ciphertext 00010000, round keys 0110, 1100, 1010.',
+      run: { input: '00010000', params: { keys: '0110 1100 1010' }, direction: 'decrypt' },
+      note: 'You get the plaintext 10110110 back. Decryption is the same rounds with the keys in reverse order: 1010, then 1100, then 0110.',
+    },
+    {
+      question: 'Quiz 1: list all design features proposed by the Feistel cipher structure.',
+      answer:
+        'Block size, key size, number of rounds, subkey generation algorithm, and round function F. For each one, more (larger, more complex) means more security and less speed.',
+    },
+  ],
   examples: [
     {
       label: 'Lecture example: 10110110, 3 rounds',

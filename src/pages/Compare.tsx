@@ -103,12 +103,7 @@ export default function Compare() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
           Every entry, side by side
         </h1>
-        <p className="cl-prose text-ink-muted">
-          The catalogue describes one cipher at a time. This table puts the same information
-          across all of them, which is the only way to answer the questions that live between
-          ciphers: what still holds up, what has a key at all, and which of them can be broken
-          here in the browser.
-        </p>
+        <p className="text-ink-muted">Every cipher on one table. Sort and filter.</p>
       </header>
 
       <div className="flex flex-wrap gap-4">
@@ -231,11 +226,7 @@ export default function Compare() {
 
       <p className="cl-prose text-sm text-ink-muted">
         <strong className="font-semibold text-ink">Breakable here</strong> means that this app
-        ships a working attack. It does not mean that the other ciphers are unbroken. In fact,
-        every entry marked &ldquo;No&rdquo; is thoroughly broken. To illustrate, Monoalphabetic
-        substitution and Playfair both fall to frequency analysis, but the practical attack is a
-        search program that swaps key letters until the text looks like English, as opposed to a
-        button. Each of those pages states this, and the reason, in its explainer.
+        ships an attack. A &ldquo;No&rdquo; can still be broken; the page says how.
       </p>
     </div>
   );

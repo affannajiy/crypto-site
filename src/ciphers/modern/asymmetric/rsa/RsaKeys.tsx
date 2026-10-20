@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import type { Params, Step } from '../../../types';
 import { type MessageKind, buildKeys, euclidTable, factor, modInverse, modPow } from './rsa';
 import RsaSignature from './RsaSignature';
+import ToySignature from './ToySignature';
 
 function readNumber(params: Params, name: string, fallback: number): number {
   const value = Number(params[name]);
@@ -243,6 +244,8 @@ Decrypt:  M = C^d mod n = ${String(firstStep.data?.['result'])}^${keys.d} mod ${
       )}
 
       <RsaSignature keys={keys} />
+
+      <ToySignature />
 
       <section aria-labelledby="rsa-break" className="flex flex-col gap-3">
         <h3 id="rsa-break" className="text-sm font-semibold text-ink-strong">

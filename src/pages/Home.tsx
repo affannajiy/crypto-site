@@ -1,21 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { populatedFamilies, searchCiphers } from '../ciphers/registry';
-import { DifficultyBadge, SecurityBadge } from '../components/CipherFacts';
-import type { CipherModule, Tier } from '../ciphers/types';
+import { SecurityBadge } from '../components/CipherFacts';
+import type { CipherModule } from '../ciphers/types';
 
 /**
  * The catalogue. Everything on this page comes from the registry, so a new
  * cipher folder appears here on its own — including its sub-heading, which is
  * read from the folder it was created in.
  */
-const TIER_LABELS: Record<Tier, string> = {
-  encrypt: 'Encrypt',
-  attack: 'Attack',
-  visualize: 'Visualize',
-  benchmark: 'Benchmark',
-};
-
 function CipherGrid({ ciphers }: { ciphers: CipherModule[] }) {
   return (
     <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -34,17 +27,8 @@ function CipherGrid({ ciphers }: { ciphers: CipherModule[] }) {
 
             <span className="text-sm leading-relaxed text-ink-muted">{cipher.blurb}</span>
 
-            <span className="mt-1 flex flex-wrap gap-1">
+            <span className="mt-auto">
               <SecurityBadge cipher={cipher} />
-              <DifficultyBadge cipher={cipher} />
-              {cipher.tiers.map((tier) => (
-                <span
-                  key={tier}
-                  className="rounded border border-line bg-sunken px-1.5 py-0.5 text-xs text-ink-muted"
-                >
-                  {TIER_LABELS[tier]}
-                </span>
-              ))}
             </span>
           </Link>
         </li>
@@ -89,31 +73,17 @@ export default function Home() {
   const results = useMemo(() => (trimmed === '' ? null : searchCiphers(trimmed)), [trimmed]);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       <header className="flex w-full flex-col gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-ink-strong sm:text-3xl">
           See how ciphers actually work
         </h1>
-        <p className="cl-prose text-ink-muted">
-          CryptoLab follows the course from pen and paper to public keys. The classical ciphers
-          come in two halves. Substitution replaces each letter with another, which hides what
-          the letters are: this is confusion. Transposition keeps the letters but moves them,
-          which hides where they are: this is diffusion. Then come the stream ciphers, which XOR
-          a computed keystream into the message, and the block ciphers, from the Feistel structure
-          through DES and Triple DES to AES, with all five modes of operation. Last is RSA, with
-          its digital signatures.
-        </p>
-        <p className="cl-prose text-ink-muted">
-          Each page encrypts a message and then lists every step the algorithm took to get there.
-          Every first example is the one from the lecture or the lab sheet, so you can check your
-          working against it. Where a cipher can be broken, the page breaks it, and where it can be
-          drawn, the page shows it move.
-        </p>
+        <p className="text-ink-muted">Encrypt a message. Read every step. Examples follow the lectures.</p>
       </header>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor={searchId} className="cl-label">
-          Search the catalogue
+        <label htmlFor={searchId} className="sr-only">
+          Search
         </label>
         <input
           id={searchId}
@@ -121,27 +91,22 @@ export default function Home() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="caesar, columnar, polyalphabetic, transposition…  (press /, or Ctrl-K anywhere)"
+          placeholder="Search ciphers  ( / )"
           className="cl-field w-full"
           autoComplete="off"
         />
         {/* Announced rather than merely shown, so a screen reader hears the count
             change as the query is typed. */}
-        <p aria-live="polite" className="text-sm text-ink-muted">
+        <p aria-live="polite" className="text-sm text-ink-subtle">
           {results === null
-            ? `${total} ${total === 1 ? 'entry' : 'entries'} in the catalogue.`
-            : `${results.length} ${results.length === 1 ? 'match' : 'matches'} for “${trimmed}”.`}
+            ? `${total} ciphers`
+            : `${results.length} ${results.length === 1 ? 'match' : 'matches'}`}
         </p>
       </div>
 
       {results !== null ? (
         results.length === 0 ? (
-          <p className="cl-prose text-ink-muted">
-            Nothing matches every word of that search. The search reads names, families, key
-            types and related terms, whereby “columnar” finds Row Transposition and “shift” finds
-            Caesar. However, it does not guess at spellings, so a near miss returns nothing rather
-            than the wrong cipher.
-          </p>
+          <p className="text-ink-muted">No match. Try a name, family or key type.</p>
         ) : (
           <CipherGrid ciphers={results} />
         )
@@ -149,12 +114,9 @@ export default function Home() {
         <>
       {families.map((family) => (
         <section key={family.id} aria-labelledby={`family-${family.id}`} className="flex flex-col gap-4">
-          <div>
-            <h2 id={`family-${family.id}`} className="text-lg font-semibold text-ink-strong">
-              {family.label}
-            </h2>
-            <p className="cl-prose mt-1 text-sm text-ink-muted">{family.description}</p>
-          </div>
+          <h2 id={`family-${family.id}`} className="text-lg font-semibold text-ink-strong">
+            {family.label}
+          </h2>
 
           {family.groups.length === 0 ? (
             <CipherGrid ciphers={family.ciphers} />
@@ -167,19 +129,12 @@ export default function Home() {
                 >
                   {group.label}
                 </h3>
-                <p className="cl-prose mt-1 text-sm text-ink-muted">{group.description}</p>
                 <CipherGrid ciphers={group.ciphers} />
               </section>
             ))
           )}
         </section>
       ))}
-
-      <p className="text-sm text-ink-subtle">
-        {total} {total === 1 ? 'entry' : 'entries'}. The same set reads differently
-        as <Link to="/compare" className="underline underline-offset-4 hover:text-ink">one table</Link>,
-        or <Link to="/playground" className="underline underline-offset-4 hover:text-ink">all at once on one message</Link>.
-      </p>
         </>
       )}
     </div>
